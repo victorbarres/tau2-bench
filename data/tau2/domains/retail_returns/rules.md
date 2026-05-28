@@ -38,10 +38,15 @@ follows for v0:
 **Consequence of O5:** `payment_type` (ontology.md §2.8) becomes
 `{ credit_card, gift_card }` only in v0. Update consumers accordingly.
 
-**Consequence of v0 simplification:** of the 7 declared `return_status`
-values, only `{ pending, rejected, refunded, cancelled }` are reachable.
-`approved` and `received` are declared in the ontology for forward
-compatibility but are forbidden by integrity constraint C-STATE-R2 (§2).
+**Consequence of v0 simplification:** of the 6 declared `return_status`
+values, only `{ pending, refunded, cancelled }` are reachable in v0.
+`approved`, `received`, and `rejected` are declared in the ontology for
+forward compatibility but are forbidden by integrity constraint C-STATE-R1
+(§2). The reason `rejected` is excluded from v0: the `reject_return`
+action has been removed from the action surface; refusals of ineligible
+requests are handled in dialogue (Layer D) without invoking
+`initiate_return`, so a `rejected` Return never appears in the DB. See
+[`actions.md`](actions.md) §0 for the cascade.
 
 ---
 
@@ -110,7 +115,9 @@ it.
   `product_of(OI, P) → product(P)`.
 - **C-REF-3.** `order_purchaser(O, C) → customer(C)`.
 - **C-REF-4.** `order_recipient(O, C) → customer(C)`.
-- **C-REF-5.** The payment method on an order is owned by the purchaser:
+- **C-REF-5.** When an order has a payment method, it is owned by the
+  purchaser. (`order_payment_method/2` is optional — absent for
+  system-generated exchange orders, per [`actions.md`](actions.md) §4.2.)
   ```
   :- order(O), order_payment_method(O, PM), order_purchaser(O, C),
      not payment_method_owner(PM, C).
@@ -160,24 +167,28 @@ it.
 
 ### 2.5 State machine: Return
 
-- **C-STATE-R1.** Return status is one of the 4 reachable v0 values:
+- **C-STATE-R1.** Return status is one of the 3 reachable v0 values:
   ```
   :- return_status(R, approved).
   :- return_status(R, received).
+  :- return_status(R, rejected).
   ```
-  (`pending`, `rejected`, `refunded`, `cancelled` are allowed.)
+  (`pending`, `refunded`, `cancelled` are allowed in v0.)
 - **C-STATE-R2.** Terminal-status data presence:
   ```
   :- return_status(R, refunded), not refund_method_set(R).
   :- return_status(R, refunded), not refund_amount_set(R).
-  :- return_status(R, rejected), not rejection_reason_set(R).
   ```
-- **C-STATE-R3.** Conversely, non-terminal returns have null derived fields:
+- **C-STATE-R3.** Conversely, non-`refunded` returns have null refund fields:
   ```
   :- return_status(R, S), S != refunded, refund_method_set(R).
   :- return_status(R, S), S != refunded, refund_amount_set(R).
-  :- return_status(R, S), S != rejected, rejection_reason_set(R).
   ```
+
+  (The `rejection_reason` field exists in the ontology for v1
+  compatibility but is unreachable in v0 because `rejected` is
+  forbidden by C-STATE-R1. The corresponding integrity constraint
+  returns in v1 when `reject_return` is reintroduced.)
 
 ### 2.6 Returned-quantity bookkeeping
 
@@ -329,6 +340,15 @@ exists_out_of_window_item(R) :-
   return_item_of(RI, R), out_of_window(RI).
 ```
 
+**Semantic caveat.** For non-returnable products (`return_class ∈ {final_sale,
+digital, hazmat}`), `applicable_window_days` is 0, and the day-0 case
+(`N = 0`) leaves `out_of_window` false. So `within_window(R)` would return
+*true* for a same-day return of a non-returnable item, which is misleading
+in isolation. This is harmless in practice because `return_eligible` (§4)
+composes `within_window` with `all_items_returnable`, which catches the
+non-returnable case independently. Read `within_window` as "the time gate
+specifically," not "the return is overall acceptable."
+
 ### 3.4 `return_class_returnable(P)`
 
 True iff the product's return class permits any returns at all.
@@ -451,11 +471,32 @@ exists_unavailable_replacement(R) :-
   product_of(OI, P), not replacement_available(P).
 ```
 
-`payment_method_valid(PM)` is an external fact emitted by the encoder
-(captures things like card expiration or closure that don't have a clean
-ASP representation).
+`payment_method_valid(PM)` is defined in §3.10.
 
-### 3.10 `eligible_refund_to_original_payment(R)`
+### 3.10 `payment_method_valid(PM)`
+
+A PaymentMethod is **valid** as a refund destination iff it is currently
+usable. Encoded directly from the ontology attributes:
+
+```
+% credit_card: valid iff its `valid` attribute is true.
+payment_method_valid(PM) :-
+  payment_method_type(PM, credit_card),
+  payment_method_credit_card_valid(PM).
+
+% gift_card: valid iff it has a non-zero balance.
+payment_method_valid(PM) :-
+  payment_method_type(PM, gift_card),
+  payment_method_balance_cents(PM, B),
+  B > 0.
+```
+
+`payment_method_credit_card_valid/1` is asserted as a ground fact by the
+encoder (it reflects the `valid` boolean attribute on the credit_card
+PaymentMethod — see [`ontology.md`](ontology.md) §3.7).
+`payment_method_balance_cents/2` is similarly a ground fact for gift cards.
+
+### 3.11 `eligible_refund_to_original_payment(R)`
 
 Convenience predicate for the common case:
 
@@ -463,7 +504,7 @@ Convenience predicate for the common case:
 eligible_refund_to_original_payment(R) :- eligible_refund_methods(R, original_payment).
 ```
 
-### 3.11 `requires_inspection(RI)`
+### 3.12 `requires_inspection(RI)`
 
 ```
 requires_inspection(RI) :- return_item_condition(RI, defective).
@@ -503,10 +544,14 @@ eligible_status(pending).
 eligible_status(refunded).
 ```
 
-A return that is `rejected` or `cancelled` is never eligible (by status).
-
-If `return_eligible(R)` is **false**, Layer C will refuse to transition the
-return from `pending` to `refunded` (it must transition to `rejected`).
+A return that is `cancelled` is never eligible (by status). In v0, the
+agent never creates a Return for which `return_eligible(R)` would be
+false — the eligibility check happens in dialogue (Layer D D-REF-2), and
+ineligible requests result in an in-band refusal without invoking
+`initiate_return`. So in practice the only way `return_eligible(R)` is
+false on an existing Return is if state has changed between initiation
+and approval (e.g., the customer cancelled it). `approve_return`'s
+precondition enforces this safety net.
 
 ---
 
@@ -635,3 +680,13 @@ post-action vs. precondition check).
   (§0). 25 integrity constraints (§2). 11 derivation predicates (§3). Composite
   `return_eligible` predicate (§4). Worked micro-example (§5). 6 questions
   surfaced for Layer C (§6).
+- **2026-05-26** — reconciliation pass. §0 v0-narrowing updated: 6 (not 7)
+  declared `return_status` values, only 3 (not 4) reachable in v0;
+  `rejected` removed as reachable since `reject_return` action is dropped
+  (see actions.md §0). C-STATE-R1 extended to forbid `rejected`;
+  C-STATE-R2/R3 dead `rejected` integrity lines removed. C-REF-5 made
+  conditional with note about exchange orders lacking `payment_method`.
+  §3.3 `within_window` semantic caveat added (composition with
+  `all_items_returnable` handles non-returnable-product edge case). §3.10
+  `payment_method_valid` derivation added (moved from Q-B-5 resolution
+  table). §3.11/§3.12 renumbered.

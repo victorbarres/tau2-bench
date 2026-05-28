@@ -324,9 +324,6 @@ A reasonable build order, given a fresh domain:
 These are interpretive choices we have not yet committed to. They will be
 resolved during the worked example and folded back into v2 of this doc.
 
-- **Multi-action tasks.** Can a single task require more than one mutating
-  action (e.g., cancel one order, then refund a separate item)? We default to
-  "one mutating action per task" for v0 and revisit.
 - **Per-task D₀ vs shared D₀.** Airline uses a shared D₀. The retail worked
   example will use a shared baseline with per-task *deltas* (added orders,
   added customers) layered on top.
@@ -334,10 +331,22 @@ resolved during the worked example and folded back into v2 of this doc.
   price > $X, drop the item") can be resolved at solve time (compute against
   `D₀`'s actual prices) or pre-resolved at authoring time. We default to
   solve-time and revisit if it causes pain.
-- **Discoverability check.** Formally, the agent should be able to reach `D*`
-  using `C_known` + DB lookups. Encoding this requires modeling the agent's
-  information state — a richer formalism than just constraints over `D*`. We
-  defer this to a follow-up and instead rely on a hand-audit for v0.
+- **Discoverability check — known gap.** Principle 5 lists discoverability
+  as a machine-checkable precondition, but v0 does not actually check it
+  formally. Encoding it would require modeling the agent's information state
+  (what facts the agent has read so far in the conversation), which is a
+  richer formalism than constraints over `D*`. v0 falls back to two coarser
+  proxies: (a) Layer D rules (D-CONF-5 and D-CONF-7 in
+  [`agent_contract.md`](../data/tau2/domains/retail_returns/agent_contract.md))
+  require the agent to have called `get_order_details` and
+  `get_customer_details` before mutating, and (b) a hand-audit at
+  task-authoring time. Full discoverability is a v1 artifact. The principle
+  remains in the methodology because the long-term commitment matters; the
+  v0 gap is explicit rather than hidden.
+
+**Locked since v0.1 (no longer open):**
+- ~~Multi-action tasks~~ — locked to "at most one mutating action per task"
+  in [`actions.md`](../data/tau2/domains/retail_returns/actions.md) §6.
 
 ---
 
@@ -370,3 +379,8 @@ catching at least one mismatch we would have missed by eye.
   worked example (no template); behavioral layer as vocabulary (no DSL);
   rendering hand-written with consistency check (no generator). Worked
   example domain: retail returns and refunds. See conversation log.
+- **2026-05-26** — §11 updated: "multi-action tasks" item moved to "Locked
+  since v0.1" (per actions.md §6); "discoverability check" reframed as a
+  known v0 gap with explicit proxies (D-CONF-5 and D-CONF-7), rather than
+  a deferred ambition. The principle stays; the v0 limitation is now in
+  the open rather than implicit.

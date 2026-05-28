@@ -180,7 +180,9 @@ optional. All identifiers are strings; all monetary amounts are integer cents
 - `order_date` (datetime)
 - `fulfillment_date` (datetime, optional) — when the order was delivered.
   Required for any returnable order.
-- `payment_method_id` (PaymentMethod id) — the payment used.
+- `payment_method_id` (PaymentMethod id, optional) — the payment used. Required
+  for all customer-purchased orders. Absent for system-generated exchange
+  orders (see [`actions.md`](actions.md) §4.2).
 - `items` (list of OrderItem; ≥ 1)
 - `total_amount_cents` (int) — sum of items.
 - `status` (enum, §2.3)
@@ -203,9 +205,11 @@ optional. All identifiers are strings; all monetary amounts are integer cents
 - `created_date` (datetime)
 - `items` (list of ReturnItem; ≥ 1)
 - `status` (enum, §2.6)
-- `refund_method` (enum, §2.7; null while `pending` or `rejected`)
-- `refund_amount_cents` (int; null while `pending` or `rejected`)
-- `rejection_reason` (string; non-null iff `status = rejected`)
+- `refund_method` (enum, §2.7; non-null iff `status = refunded`)
+- `refund_amount_cents` (int; non-null iff `status = refunded`)
+- `rejection_reason` (string; non-null iff `status = rejected`. Unreachable
+  in v0 — `rejected` is forbidden by Layer B C-STATE-R1, kept for v1
+  forward-compatibility when `reject_return` may be reintroduced.)
 
 ### 3.6 ReturnItem
 - `return_item_id` (id)
@@ -277,15 +281,18 @@ single vocabulary to use.
 | Predicate | Arity | Intuition |
 |---|---|---|
 | `is_gift_order(O)` | 1 | True iff `recipient ≠ purchaser`. |
-| `applicable_window_days(O, R)` | 2 | The return window in days that applies to Order `O` given declared reason `R`. |
-| `within_window(Return)` | 1 | True iff `current_time − Order.fulfillment_date ≤ applicable window`. |
-| `return_class_returnable(Product)` | 1 | True iff the product's return_class permits returns at all. |
-| `eligible_to_initiate(Customer, Order)` | 2 | True iff the customer is the purchaser or the gift recipient. |
-| `restocking_fee_applies(ReturnItem)` | 1 | True iff `opened_unused` ∧ `return_class = standard` ∧ reason ∈ {change_of_mind, wrong_size_or_color}. |
-| `refund_amount_for(ReturnItem)` | 1 | The per-line monetary amount, after any restocking fee. |
-| `refund_method_for(Return)` | 1 | The mechanism: `original_payment`, `store_credit`, or `exchange`. |
-| `eligible_refund_to_original_payment(Return)` | 1 | True iff not a gift return AND original payment method still valid. |
-| `requires_inspection(ReturnItem)` | 1 | True iff declared_condition = `defective` (held for a Layer D rule about confirming the claim). |
+| `effective_returner(O, C)` | 2 | The customer who is entitled to initiate a return on order `O`. |
+| `applicable_window_days(RI, D)` | 2 | The return window in days that applies to ReturnItem `RI`, given the product's return class, declared reason, and the purchaser's member tier. |
+| `within_window(R)` | 1 | True iff every ReturnItem of Return `R` has elapsed-since-fulfillment ≤ its applicable window. |
+| `return_class_returnable(P)` | 1 | True iff the product's return_class permits returns at all. |
+| `eligible_to_initiate(C, O)` | 2 | True iff customer `C` is the order's effective returner. |
+| `restocking_fee_applies(RI)` | 1 | True iff `opened_unused` ∧ `return_class = standard` ∧ reason ∈ {change_of_mind, wrong_size_or_color}. |
+| `refund_amount_for(RI, A)` | 2 | The per-line monetary refund amount `A`, after any restocking fee. |
+| `eligible_refund_methods(R, M)` | 2 | Multi-valued: each fact asserts that refund method `M` is a valid choice for Return `R`. |
+| `eligible_refund_to_original_payment(R)` | 1 | Convenience: true iff `eligible_refund_methods(R, original_payment)`. |
+| `payment_method_valid(PM)` | 1 | True iff `PM` is currently usable as a refund destination. |
+| `requires_inspection(RI)` | 1 | True iff declared_condition = `defective`. Declared for v1; not gated in v0. |
+| `return_eligible(R)` | 1 | Composite: true iff the return is eligible for approval. |
 
 ---
 
@@ -353,3 +360,10 @@ catch it.
 - **2026-05-22** — initial draft. Sorts, enumerations, attributes, and the
   vocabulary of derived predicates declared. Awaiting Layer B (rules) and
   resolution of the 6 open questions in §8.
+- **2026-05-26** — reconciliation pass. §3.3 `payment_method_id` marked
+  optional (exchange-order accommodation). §6 derived-predicates table
+  reconciled with Layer B actual definitions: `applicable_window_days`
+  signature corrected to `(RI, D)`; `refund_amount_for` arity corrected to
+  2; orphan `refund_method_for` removed; `eligible_refund_methods`,
+  `payment_method_valid`, `effective_returner`, and `return_eligible`
+  added.

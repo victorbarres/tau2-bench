@@ -28,8 +28,8 @@ follows:
 | Q | Resolution |
 |---|---|
 | **Q-C-1** Approve confirmation | Always required. Agent must list refund method + total amount and obtain explicit "yes" before invoking `approve_return`. Codified as D-CONF-2. |
-| **Q-C-2** Rejection authority | Agent may reject only on the three policy-derivable grounds (window, returnability, initiator eligibility) — see actions.md §4.3. Any softer ground → transfer. Codified as D-REF-3. |
-| **Q-C-3** Required reads | Explicit. `get_order_details` is required before any mutation on that Order. `get_customer_details` is required before any mutation when the customer identity is in question. Codified as D-CONF-5 and D-AUTH-3. |
+| **Q-C-2** Refusal authority | With `reject_return` removed from the action surface ([`actions.md`](actions.md) §0), refusal is a **dialogue act**, not a tool call. Agent may refuse in-band on the three policy-derivable grounds (window, returnability, initiator eligibility) — Layer C precondition for `initiate_return` is left structural-only; the agent must not invoke `initiate_return` on ineligible requests. Codified as D-REF-2 and D-REF-3. |
+| **Q-C-3** Required reads | Explicit. `get_order_details` is required before any mutation on that Order (D-CONF-5). `get_customer_details` is required before any mutation involving customer-scoped data (D-CONF-7). |
 | **Q-C-4** Refund method when customer silent | Agent must re-ask. May not pick a default. Codified as D-CONF-3. |
 | **Q-C-5** Mixed-intent returns | Agent must split into two interactions or transfer if the customer insists on doing it as one. Codified as D-OOS-2. |
 | **Q-C-6** Idempotency | If the same mutation is requested again on a terminal-state Return, agent reports the existing state and does not re-invoke. Codified as D-CONF-6. |
@@ -121,14 +121,20 @@ that information. `[prompt]`
 The agent MUST list the proposed action's details and obtain explicit
 affirmative confirmation ("yes" or unambiguous equivalent) from the customer
 before invoking any mutating action (`initiate_return`, `approve_return`,
-`reject_return`, `cancel_return`). `[runtime + prompt]`
+`cancel_return`). `[runtime + prompt]`
 
-### D-CONF-2 — Approve-specific confirmation contents
-For `approve_return`, the confirmation message MUST include:
-- The list of items being returned (with quantities).
-- The refund method.
-- The total refund amount in dollars and cents.
-- For exchanges: the SKU of the replacement and expected processing note.
+### D-CONF-2 — Approve-specific confirmation contents and ordering
+For `approve_return`, the agent MUST follow this ordering:
+1. Determine the refund method (per D-CONF-3 if multiple are eligible).
+2. Compute the total refund amount given that method (the amount depends on
+   the method via restocking-fee logic — see [`rules.md`](rules.md) §3.7
+   and §3.8).
+3. Present the confirmation message containing:
+   - The list of items being returned (with quantities).
+   - The chosen refund method.
+   - The total refund amount in dollars and cents.
+   - For exchanges: the SKU of the replacement.
+4. Obtain explicit "yes" (D-CONF-1) before invoking the tool.
 
 `[prompt]`
 
@@ -138,12 +144,18 @@ agent MUST present all options and ask the customer to choose. The agent
 MUST NOT pick a default. If the customer is non-committal, the agent MUST
 re-ask. `[prompt]`
 
-### D-CONF-4 — Reject-specific confirmation contents
-For `reject_return`, the agent MUST first state the policy reason for the
-rejection in customer-facing terms (citing the relevant policy clause), then
-offer the customer the choice to (a) acknowledge and close, or (b) request
-transfer to a human. Only after the customer chooses (a) does the agent
-invoke `reject_return`. `[prompt]`
+### D-CONF-4 — In-band refusal flow
+When the agent determines (via reads against `D₀` + the eligibility
+predicates in [`rules.md`](rules.md) §3 and §4) that a requested return is
+ineligible, the agent MUST:
+1. State the specific policy reason in customer-facing terms (D-TURN-5).
+2. NOT invoke `initiate_return` (since policy_noop tasks require
+   `D* = D₀`; creating a pending Return would diverge from this).
+3. Offer the customer the choice to (a) acknowledge the refusal and close,
+   or (b) request transfer to a human.
+
+If the customer chooses (a): the conversation closes with no tool calls.
+If the customer chooses (b): `MUST TRANSFER` per D-REF-6. `[prompt]`
 
 ### D-CONF-5 — Pre-mutation lookup
 Before invoking any mutating action on an Order, the agent MUST have called
@@ -154,6 +166,14 @@ mutate state it has not read). `[runtime]`
 If the customer requests a mutation that has already been performed on a
 Return (Return is in a terminal state), the agent MUST NOT invoke the action
 again. The agent MUST report the existing state to the customer. `[runtime]`
+
+### D-CONF-7 — Pre-mutation customer lookup
+Before invoking any mutating action that depends on customer-scoped data
+(member tier for window selection, store credit balance for refund target,
+payment-method ownership), the agent MUST have called
+`get_customer_details(customer_id)` in the same conversation. Combined with
+D-CONF-5, this guarantees the agent has both the order context and the
+customer context before mutating. `[runtime]`
 
 ---
 
@@ -178,9 +198,9 @@ incoherent pairs:
 ### D-CHAL-2 — Defective claim challenge
 When the customer declares `defective` (which extends the window to 365
 days), the agent MUST ask for a brief description of the defect before
-proceeding. The agent need not validate the description against any external
-source, but the description MUST be recorded as part of the rejection
-reason if Layer C later rejects the return. `[prompt]`
+proceeding. The agent need not validate the description against any
+external source — the challenge is a discoverability check, not a
+verification step. `[prompt]`
 
 ### D-CHAL-3 — Stated-date vs. order-date mismatch
 If the customer asserts a purchase date (or delivery date) that materially
@@ -216,22 +236,31 @@ On every customer request, the agent MUST evaluate in order:
 4. Otherwise → execute with confirmation.
 
 ### D-REF-2 — In-band refusal grounds
-The agent MUST refuse (and not transfer) when the request fails one of the
-following Layer B/C preconditions and the failure is unambiguous:
-- `not within_window(R)` — outside the applicable return window.
+The agent MUST refuse in-band (and not transfer, and not invoke
+`initiate_return`) when the request fails one of the following Layer B
+eligibility predicates and the failure is unambiguous:
+- `not within_window(R_hypothetical)` — outside the applicable return window.
 - `not return_class_returnable(P)` — product class is non-returnable (final
   sale, digital, hazmat).
 - `not eligible_to_initiate(C, O)` — customer is not the order's purchaser
   or recipient.
-- `not return_eligible(R)` for any reason derivable from the above.
 
-In each case the agent MUST cite the specific policy clause in
-customer-facing terms. `[prompt]`
+Eligibility is evaluated against the **prospective** return shape (i.e.,
+what the Return record *would* contain), computed by the agent from the
+customer's request + the data returned by `get_order_details`,
+`get_product_details`, and `get_customer_details`. The agent MUST NOT call
+`initiate_return` to "test" eligibility — it is a precondition of calling
+`initiate_return` that eligibility holds. In each refusal the agent MUST
+cite the specific policy clause in customer-facing terms (D-TURN-5) and
+follow the refusal flow in D-CONF-4. `[prompt]`
 
-### D-REF-3 — Rejection authority limit (Q-C-2)
-The agent MUST NOT reject a return on grounds outside D-REF-2. If the agent
-suspects fraud, manipulation, or has any other reservation not derivable
-from policy, the agent `MUST TRANSFER`. `[prompt]`
+### D-REF-3 — Refusal authority limit (Q-C-2)
+The agent MUST NOT refuse a return in-band on grounds outside D-REF-2. If
+the agent suspects fraud, manipulation, or has any other reservation not
+derivable from the three policy-listed predicates, the agent
+`MUST TRANSFER` instead. (Refusal in-band asserts that policy *clearly*
+forbids the request; transfer asserts that the case is *too ambiguous* for
+the agent to decide.) `[prompt]`
 
 ### D-REF-4 — Customer escalation request
 If the customer asks for a supervisor, a manager, or a human, the agent
@@ -353,13 +382,15 @@ is an agent state; transitions are customer messages / tool results.
   │ mutation, awaiting │   │ citing policy,   │
   │ confirmation       │   │ awaiting close   │
   └─────────┬──────────┘   └────────┬─────────┘
-            │ "yes"                  │ "ok" or insist x3
-            ▼                        ▼
-  ┌────────────────────┐   ┌──────────────────┐
-  │ 5a. EXECUTED       │   │ 5b. TRANSFER     │
-  │ tool fired,        │   │ (terminal)       │
-  │ confirmed to user  │   └──────────────────┘
-  └────────────────────┘
+            │ "yes"           ┌─────┴─────┐
+            ▼                 │ "ok"      │ insist x3
+  ┌────────────────────┐      ▼           ▼
+  │ 5a. EXECUTED       │  ┌────────┐  ┌──────────┐
+  │ tool fired,        │  │ 5c.    │  │ 5b.      │
+  │ confirmed to user  │  │ CLOSED │  │ TRANSFER │
+  └────────────────────┘  │ (no    │  │ (term)   │
+                          │ tool)  │  └──────────┘
+                          └────────┘
 ```
 
 This diagram is not normative; it's an aid for understanding how the rules
@@ -376,9 +407,10 @@ Each rule has a corresponding *failure pattern* in an agent trajectory:
 | D-AUTH-1 | Tool call to customer-scoped action before identifier obtained. |
 | D-CONF-1 | Mutating tool call with no immediately-prior "yes" from customer. |
 | D-CONF-2 | Mutating `approve_return` tool call whose preceding agent message lacks refund method + amount. |
-| D-CONF-5 | `initiate_return` / `approve_return` / `reject_return` / `cancel_return` without prior `get_order_details` for the same order_id. |
+| D-CONF-5 | `initiate_return` / `approve_return` / `cancel_return` without prior `get_order_details` for the same order_id. |
+| D-CONF-7 | Mutating action without prior `get_customer_details` for the affected customer. |
 | D-CHAL-1 | `initiate_return` with incoherent reason/condition pair on any ReturnItem. |
-| D-REF-2 | `reject_return` invocation whose `return_eligible(R)` is true (rejecting a valid return). |
+| D-REF-2 | `initiate_return` invocation whose hypothetical Return would fail `return_eligible` (agent should have refused in-band instead). |
 | D-REF-3 | Refusal cited with a non-policy reason; agent did not transfer. |
 | D-REF-6 | Transfer with text content other than the exact mandated string. |
 | D-TURN-1 | Agent turn contains both tool call and customer-facing text. |
@@ -431,6 +463,13 @@ short controlled vocabulary, e.g., `customer_escalation_request`,
   37 deontic rules across 7 sections (§2–§8). Agent state machine sketch
   (§9). Trajectory-failure mapping (§10). 6 questions surfaced for Layer
   E/F (§11).
+- **2026-05-26** — reconciliation pass. `reject_return` cascade (see
+  actions.md §0): Q-C-2 / D-REF-2 / D-REF-3 reframed as in-band dialogue
+  refusal; D-CONF-1 mutating-action list trimmed; D-CONF-4 rewritten as
+  in-band refusal flow; §9 state machine updated to add the "closed without
+  tool" terminal. Q-C-3 cleanly resolved: D-CONF-7 added requiring
+  `get_customer_details` before customer-scoped mutations. D-CONF-2
+  tightened to specify the four-step ordering. Total rules: 37 → 38.
 
 With Layer D drafted, the **policy** part of the domain is complete. Layers
 E (instantiation) and F (tasks) are about giving the policy something to

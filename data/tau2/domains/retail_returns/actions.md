@@ -28,14 +28,28 @@ for v0:
 | **Q-B-2** Single vs split approve+refund | **Single action.** `approve_return(R, refund_method)` performs the full `pending → refunded` transition atomically (sets refund method, refund amount, increments returned_quantity, applies store credit / replacement order if applicable). | Action design. |
 | **Q-B-3** Exchange representation | **Paired Order, same SKU.** `refund_method = exchange` creates a new Order containing only the replacement item(s) with `unit_price_cents = 0`, owned by the same purchaser, `status = placed`. The original Order's `returned_quantity` increments normally; no monetary refund. | Effect of `approve_return` when refund_method = exchange. |
 | **Q-B-4** Cancel-return as action | **Distinct action.** `cancel_return(R)` is its own thing; it does not share an entry point with `approve_return`. | Two separate actions. |
-| **Q-B-5** Payment-method validity | A `credit_card` PaymentMethod is valid iff its `valid` attribute is true. A `gift_card` is valid iff `balance_cents > 0`. | External predicate `payment_method_valid/1` asserted by encoder. |
+| **Q-B-5** Payment-method validity | **Layer B derivation, not external fact.** Defined in [`rules.md`](rules.md) §3.10 from ontology attributes (`valid` on credit_card, `balance_cents > 0` on gift_card). The encoder asserts only the underlying attribute facts; the predicate is derived. | Derivation rule in Layer B. |
 | **Q-B-6** Cross-return consistency | **Precondition check.** `initiate_return` rejects if the requested quantity per OrderItem exceeds the unreturned remainder. Layer B's C-CARD-5 + C-BOOK-1 are the safety net; the precondition fails fast. | Precondition on `initiate_return`. |
+
+**v0 design change (2026-05-26): `reject_return` removed from the action
+surface.** The original design had `initiate_return` create a pending Return
+regardless of eligibility, then `reject_return` move it to `rejected`. This
+produced a DB diff (a `rejected` Return record) for what the methodology
+calls a `policy_noop` task — contradicting the methodology's claim that
+`D* = D₀` for policy_noop. The corrected design: the agent computes
+eligibility from the request shape using read actions and, if ineligible,
+refuses **in dialogue** without invoking `initiate_return`. This keeps the
+DB unchanged for all policy_noop tasks. `initiate_return` retains its
+structural-only preconditions; the *agent contract* (Layer D) is
+responsible for not invoking it on ineligible requests. The
+`rejection_reason` field on Return is preserved in the ontology for v1
+compatibility but is unreachable in v0 (forbidden by C-STATE-R1).
 
 ---
 
 ## 1. Action surface
 
-Ten actions total. Closed; no other operation is invocable.
+Nine actions total. Closed; no other operation is invocable.
 
 | Action | Read or mutate | Used to |
 |---|---|---|
@@ -46,7 +60,6 @@ Ten actions total. Closed; no other operation is invocable.
 | `search_customer_orders(C, filters)` | read | Find orders for a customer matching filters (date range, status, product). |
 | `initiate_return(O, C, items)` | mutate | Create a `pending` Return on Order `O` initiated by Customer `C`. |
 | `approve_return(R, refund_method)` | mutate | Move a `pending` Return to `refunded` with the chosen mechanism. |
-| `reject_return(R, reason)` | mutate | Move a `pending` Return to `rejected` with a stated reason. |
 | `cancel_return(R)` | mutate | Move a `pending` Return to `cancelled` (customer withdrawing). |
 | `transfer_to_human_agent(reason)` | escalate | End the agent's session and hand off. No DB effect. |
 
@@ -138,7 +151,7 @@ describe the order (e.g., "the one I bought last week with the blue widget").
 
 ## 4. Mutating actions
 
-The four core transitions. Each is described as:
+The three core transitions. Each is described as:
 
 - **Signature** — name and parameters.
 - **Preconditions** — must hold in `D₀` for the action to fire.
@@ -253,40 +266,7 @@ refund, store credit credit, exchange-order creation — happen atomically.
 **Failure modes**: precondition violations are surfaced as specific error
 codes. Layer D specifies whether the agent retries, refuses, or transfers.
 
-### 4.3 `reject_return(return_id, rejection_reason)`
-
-Move a `pending` Return to `rejected`.
-
-**Signature**:
-- `return_id`.
-- `rejection_reason: string` (free text, not enumerated for v0 — but the
-  agent contract layer will constrain it to a small vocabulary of policy-
-  cited reasons).
-
-**Preconditions**:
-- `return(return_id)` exists.
-- `return_status(return_id, pending)`.
-- The reject is **policy-justified**, i.e., **at least one** of the
-  following predicates fails on the Return (so eligibility *correctly*
-  refuses approval):
-  - `within_window(return_id)`.
-  - `all_items_returnable(return_id)`.
-  - `eligible_to_initiate(initiator, order)`.
-
-  This is the v0 contract: rejection requires a derivable reason. If
-  `return_eligible(return_id)` is true, the action refuses to fire — the
-  agent would be rejecting a return that policy says is valid. (Layer D may
-  add other rejection paths for customer-side issues like withdrawn
-  consent, but those would be `cancel_return`, not `reject_return`.)
-
-**Effects**:
-- `return_status(return_id, rejected)`.
-- `rejection_reason(return_id, rejection_reason)`.
-- No quantity, order-status, or monetary side effects.
-
-**Failure modes**: as above.
-
-### 4.4 `cancel_return(return_id)`
+### 4.3 `cancel_return(return_id)`
 
 Customer withdraws a return they previously initiated.
 
@@ -378,10 +358,12 @@ refund mechanism with the customer?** Default: never. The agent must list
 the refund method and amount and get explicit "yes" before approve fires.
 Layer D will codify.
 
-**Q-C-2. What's the agent's authority to reject?** Some rejection cases are
-clear-cut (window expired). Others are softer (suspected fraudulent
-condition declaration). v0 default: agent can only reject on the three
-policy-derivable grounds enumerated in §4.3. Anything else → transfer.
+**Q-C-2. What's the agent's authority to refuse?** With `reject_return`
+removed (§0), refusal is a dialogue act, not an action. The agent may
+refuse in-band on policy-derivable grounds (window expired, product
+non-returnable, customer not the order's effective returner). Softer
+grounds (suspected fraud, etc.) require transfer. Layer D codifies the
+exact rules.
 
 **Q-C-3. Required reads before each mutation.** Discoverability check:
 should we require that the agent has called `get_order_details` and
@@ -415,6 +397,12 @@ D. Default: error to customer, no DB change.
   (§0). 10 actions declared (§1). 4 mutating actions specified in full
   (§4–§5). One-mutation-per-task convention declared (§6). 6 questions
   surfaced for Layer D (§8).
+- **2026-05-26** — reconciliation pass. `reject_return` removed from the
+  action surface to make `policy_noop` give `D* = D₀` cleanly (in-band
+  refusal handled by Layer D D-CONF-4 instead). Action count: 10 → 9.
+  Mutating actions: 4 → 3. Q-B-5 resolution updated to point to Layer B
+  derivation (rules.md §3.10). Q-C-2 reframed: refusal is a dialogue act,
+  not a tool call.
 
 The action surface is now closed for v0. Any new operation requires updating
 this document, which cascades to Layers A (if it introduces a new sort or
