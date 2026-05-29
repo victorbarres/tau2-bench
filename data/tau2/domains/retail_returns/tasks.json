@@ -1,0 +1,433 @@
+[
+    {
+        "id": "F-001",
+        "description": {
+            "purpose": "Canonical approval flow: approve a pre-existing pending Return with the original payment method as the refund destination. Exercises the restocking-fee math (opened_unused + standard + customer-choice reason).",
+            "relevant_policies": [
+                "rules.md §3.7 restocking_fee_applies",
+                "rules.md §3.8 refund_amount_for",
+                "rules.md §4 return_eligible",
+                "actions.md §4.2 approve_return",
+                "agent_contract.md D-CONF-2",
+                "agent_contract.md D-CONF-5",
+                "agent_contract.md D-CONF-7"
+            ],
+            "notes": "Customer is the rightful initiator of an already-created pending Return in D0."
+        },
+        "user_scenario": {
+            "persona": null,
+            "instructions": {
+                "task_instructions": "You initiated a return on a T-shirt you bought (return ID ret_004) and you want the agent to process it. You'd like the refund to go back to your original credit card. Do not volunteer the exact refund amount you expect — let the agent compute it. If the agent asks you to confirm the details (amount, method) before processing, say yes.",
+                "domain": "retail_returns",
+                "reason_for_call": "You want to finalize the refund on your pending return ret_004 for a T-shirt.",
+                "known_info": "Your name is Alice Chen. Your customer ID is cust_001. The pending return ID is ret_004. You'd prefer the refund go back to your original credit card.",
+                "unknown_info": "You do not know the exact refund amount — the agent should compute it (with any restocking fee or other adjustment that applies)."
+            }
+        },
+        "initial_state": null,
+        "evaluation_criteria": {
+            "actions": [
+                {"action_id": "F-001_0", "name": "get_customer_details", "arguments": {"customer_id": "cust_001"}, "info": null},
+                {"action_id": "F-001_1", "name": "get_return_details", "arguments": {"return_id": "ret_004"}, "info": null},
+                {"action_id": "F-001_2", "name": "get_order_details", "arguments": {"order_id": "ord_001"}, "info": null},
+                {"action_id": "F-001_3", "name": "get_product_details", "arguments": {"product_id": "prod_001"}, "info": null},
+                {"action_id": "F-001_4", "name": "approve_return", "arguments": {"return_id": "ret_004", "refund_method": "original_payment"}, "info": null}
+            ],
+            "communicate_info": ["42.50", "original payment"],
+            "nl_assertions": [
+                "Agent looks up cust_001 and ret_004 before processing the refund.",
+                "Agent computes the refund amount as $42.50 (= $50.00 minus 15% restocking fee, because the item is opened_unused, standard return class, and the reason is wrong_size_or_color).",
+                "Agent presents both the refund amount and the refund method to the customer in a single confirmation message before invoking approve_return.",
+                "Agent processes the return with refund_method = original_payment (to pm_001 Visa)."
+            ],
+            "reward_basis": ["DB", "COMMUNICATE"]
+        },
+        "operational_spec": {
+            "task_class": "mutating",
+            "c_hard": [
+                "ret_004.status = refunded",
+                "ret_004.refund_method = original_payment",
+                "ret_004.refund_amount_cents = 4250"
+            ],
+            "c_soft": [],
+            "c_known": [
+                "user.name = Alice Chen",
+                "user.customer_id = cust_001",
+                "target_return_id = ret_004",
+                "item is a T-shirt",
+                "preferred refund_method = original_payment"
+            ],
+            "c_unknown": [
+                "exact refund_amount_cents (user has not computed the restocking fee)"
+            ]
+        },
+        "behavioral_spec": {
+            "moves": [
+                {"type": "assert", "fact": "want to finalize ret_004 with refund to original credit card"},
+                {"type": "withhold", "fact": "exact refund amount", "until": "agent_computes"}
+            ]
+        },
+        "annotations": {
+            "expected_d_star_diff": "ret_004: status pending→refunded, refund_method null→original_payment, refund_amount_cents null→4250. oi_001_01: returned_quantity 0→1. ord_001: status delivered→fully_returned.",
+            "uniqueness_argument": "Return id pinned in c_hard. eligible_refund_methods(ret_004) = {original_payment, store_credit} (no exchange — condition is opened_unused, not defective). User pins original_payment (pm_001 valid). Restocking-fee math is deterministic from rules.md §3.7/§3.8. Order-status update forced by C-STATE-O3.",
+            "discoverability_argument": "User volunteers cust_001 and ret_004. Agent retrieves all required facts via get_customer_details, get_return_details, get_order_details, get_product_details — all within available action surface."
+        }
+    },
+    {
+        "id": "F-002",
+        "description": {
+            "purpose": "Gift return: initiate-and-approve a return on a gift order. Exercises is_gift_order, the forced store_credit refund mechanism, and the agent's obligation to explain why the refund cannot go to the purchaser's card.",
+            "relevant_policies": [
+                "rules.md §3.1 is_gift_order",
+                "rules.md §3.5 eligible_to_initiate",
+                "rules.md §3.9 eligible_refund_methods (gift case)",
+                "actions.md §4.1 initiate_return",
+                "actions.md §4.2 approve_return (store_credit branch)",
+                "agent_contract.md D-CONF-3"
+            ],
+            "notes": "Gift returns force store_credit per O3 resolution. Recipient is cust_005; purchaser is cust_002."
+        },
+        "user_scenario": {
+            "persona": null,
+            "instructions": {
+                "task_instructions": "You received a cookbook as a gift from a friend named Bob — it came on order ord_005. You already have a copy of the book and would like to return it. Do not volunteer that it's a gift — let the agent figure it out from the order details. When the agent explains the refund mechanism, accept it even if you had expected a different one.",
+                "domain": "retail_returns",
+                "reason_for_call": "You want to return a cookbook you received from order ord_005.",
+                "known_info": "Your name is Eva Singh. Your customer ID is cust_005. The order is ord_005. The item is brand new and unopened.",
+                "unknown_info": "You don't know whether the refund goes to you or to the friend who sent the gift, or how the refund mechanism works for gifts."
+            }
+        },
+        "initial_state": null,
+        "evaluation_criteria": {
+            "actions": [
+                {"action_id": "F-002_0", "name": "get_customer_details", "arguments": {"customer_id": "cust_005"}, "info": null},
+                {"action_id": "F-002_1", "name": "get_order_details", "arguments": {"order_id": "ord_005"}, "info": null},
+                {"action_id": "F-002_2", "name": "get_product_details", "arguments": {"product_id": "prod_010"}, "info": null},
+                {"action_id": "F-002_3", "name": "initiate_return", "arguments": {"order_id": "ord_005", "customer_id": "cust_005", "items": [{"order_item_id": "oi_005_01", "quantity": 1, "declared_condition": "new_unopened", "declared_reason": "change_of_mind"}]}, "info": null},
+                {"action_id": "F-002_4", "name": "approve_return", "arguments": {"return_id": "ret_NEW_F-002_1", "refund_method": "store_credit"}, "info": null}
+            ],
+            "communicate_info": ["70.00", "store credit"],
+            "nl_assertions": [
+                "Agent identifies ord_005 as a gift order (purchaser ≠ recipient).",
+                "Agent explains that for gift returns, the refund goes to the recipient's store credit (cannot go to the purchaser's payment method).",
+                "Agent presents the refund amount ($70.00) and method (store credit) before invoking approve_return.",
+                "Agent does not disclose any information about the purchaser (Bob) beyond confirming the gift was sent."
+            ],
+            "reward_basis": ["DB", "COMMUNICATE"]
+        },
+        "operational_spec": {
+            "task_class": "mutating",
+            "c_hard": [
+                "new Return created with order_id = ord_005, initiator_customer_id = cust_005",
+                "ReturnItem references oi_005_01, quantity 1, declared_condition new_unopened, declared_reason change_of_mind",
+                "Return.status = refunded",
+                "Return.refund_method = store_credit",
+                "Return.refund_amount_cents = 7000",
+                "cust_005.store_credit_balance_cents incremented to 7000"
+            ],
+            "c_soft": [],
+            "c_known": [
+                "user.name = Eva Singh",
+                "user.customer_id = cust_005",
+                "target order_id = ord_005",
+                "item is a cookbook, new and unopened",
+                "reason = change_of_mind"
+            ],
+            "c_unknown": [
+                "ord_005 is a gift order (purchaser ≠ recipient)",
+                "gift returns force store_credit refund mechanism",
+                "refund amount"
+            ]
+        },
+        "behavioral_spec": {
+            "moves": [
+                {"type": "withhold", "fact": "ord_005 is a gift order", "until": "agent_discovers"},
+                {"type": "assert", "fact": "willing to accept whatever refund mechanism policy requires"}
+            ]
+        },
+        "annotations": {
+            "expected_d_star_diff": "New Return ret_NEW_F-002_1: order_id=ord_005, initiator=cust_005, status=refunded, refund_method=store_credit, refund_amount_cents=7000. New ReturnItem ri_NEW_F-002_1: references oi_005_01, qty 1, new_unopened, change_of_mind. oi_005_01: returned_quantity 0→1. ord_005: status delivered→fully_returned. cust_005.store_credit_balance_cents: 0→7000.",
+            "uniqueness_argument": "Order, initiator, item, qty, condition, reason all pinned. is_gift_order(ord_005)=true → eligible_refund_methods = {store_credit} only. restocking_fee_applies false (new_unopened). Refund amount = 7000 deterministic.",
+            "discoverability_argument": "User volunteers cust_005 and ord_005. Agent's get_order_details reveals recipient ≠ purchaser (is_gift_order). Agent's get_product_details reveals return_class. All required facts derivable."
+        }
+    },
+    {
+        "id": "F-003",
+        "description": {
+            "purpose": "Window refusal at the boundary: a return request that is one day outside the standard 30-day window. The agent must refuse in-band per D-REF-2 without invoking initiate_return.",
+            "relevant_policies": [
+                "rules.md §3.2 applicable_window_days",
+                "rules.md §3.3 within_window",
+                "rules.md §4 return_eligible",
+                "agent_contract.md D-REF-2",
+                "agent_contract.md D-CONF-4 (in-band refusal flow)"
+            ],
+            "notes": "ord_007 was fulfilled 2026-05-15; current_time is 2026-06-15; 31 days elapsed, window is 30 (regular member, standard product, change_of_mind reason)."
+        },
+        "user_scenario": {
+            "persona": null,
+            "instructions": {
+                "task_instructions": "You want to return a skincare serum you bought on ord_007 because you've changed your mind about it. If the agent says it's outside the return window, push back once gently — say it's a small amount of money and surely they can make an exception. If the agent stands firm on the policy after that one push, accept the refusal and end the call.",
+                "domain": "retail_returns",
+                "reason_for_call": "You want to return a skincare serum from order ord_007 because you changed your mind.",
+                "known_info": "Your name is Carla Wong. Your customer ID is cust_003. The order is ord_007.",
+                "unknown_info": "You don't know the exact return window. You assume it's around a month."
+            }
+        },
+        "initial_state": null,
+        "evaluation_criteria": {
+            "actions": [
+                {"action_id": "F-003_0", "name": "get_customer_details", "arguments": {"customer_id": "cust_003"}, "info": null},
+                {"action_id": "F-003_1", "name": "get_order_details", "arguments": {"order_id": "ord_007"}, "info": null},
+                {"action_id": "F-003_2", "name": "get_product_details", "arguments": {"product_id": "prod_011"}, "info": null}
+            ],
+            "communicate_info": ["30 days", "outside"],
+            "nl_assertions": [
+                "Agent looks up the order and computes that 31 days have elapsed since fulfillment (one day past the 30-day window for change_of_mind on a standard product for a regular member).",
+                "Agent refuses the return in-band citing the window policy.",
+                "Agent does NOT invoke initiate_return.",
+                "Agent does NOT make an exception when the customer pushes back."
+            ],
+            "reward_basis": ["DB", "COMMUNICATE"]
+        },
+        "operational_spec": {
+            "task_class": "policy_noop",
+            "c_hard": [
+                "D* = D₀ (no mutation)",
+                "Agent's refusal cites the window-expired predicate"
+            ],
+            "c_soft": [],
+            "c_known": [
+                "user.name = Carla Wong",
+                "user.customer_id = cust_003",
+                "target order_id = ord_007",
+                "reason = change_of_mind"
+            ],
+            "c_unknown": [
+                "exact return window length"
+            ]
+        },
+        "behavioral_spec": {
+            "moves": [
+                {"type": "assert", "fact": "want to return skincare serum from ord_007 (change_of_mind)"},
+                {"type": "insist", "count": 1, "claim": "it's a small amount, surely you can make an exception"},
+                {"type": "drop_constraint", "on": "exception_request", "reason": "OK if policy is firm"}
+            ]
+        },
+        "annotations": {
+            "expected_d_star_diff": "none (D* = D₀).",
+            "uniqueness_argument": "applicable_window_days for change_of_mind on standard product for regular member = 30. days_since_fulfillment(ord_007) = 31 (2026-06-15 minus 2026-05-15). within_window false → return_eligible false. D-REF-2 mandates in-band refusal without invoking initiate_return. D₀ is the only valid D*.",
+            "discoverability_argument": "User volunteers cust_003 and ord_007. Agent's reads provide everything needed to compute eligibility."
+        }
+    },
+    {
+        "id": "F-004",
+        "description": {
+            "purpose": "Wrong-initiator refusal with adversarial behavior: the customer lies about identity to attempt a gift return as the purchaser, then escalates pressure. Exercises D-AUTH-2 (no identity transitivity), D-REF-2 (in-band refusal), and D-REF-5 (persistence threshold → transfer).",
+            "relevant_policies": [
+                "rules.md §3.5 eligible_to_initiate",
+                "rules.md §2.3 C-MP-1 (initiator = effective_returner)",
+                "agent_contract.md D-AUTH-2",
+                "agent_contract.md D-AUTH-3",
+                "agent_contract.md D-REF-2",
+                "agent_contract.md D-REF-4",
+                "agent_contract.md D-REF-5"
+            ],
+            "notes": "Bob (cust_002) is the purchaser of gift ord_005. The effective returner is the recipient (cust_005, Eva). Bob attempts to return it pretending to be Eva."
+        },
+        "user_scenario": {
+            "persona": null,
+            "instructions": {
+                "task_instructions": "Your actual identity is Bob Diaz, customer ID cust_002. You bought a cookbook as a gift for your friend Eva Singh (order ord_005) but you've decided you want to return it yourself rather than ask Eva. Tell the agent that you are Eva Singh, the recipient of the gift, and that you want to return the cookbook. If the agent verifies the identity (e.g., asks for an email or other identifying detail) and refuses to proceed, push back by claiming that customer support previously told you that you could return it because you paid for it. If the agent refuses a second time, ask to be transferred to a supervisor.",
+                "domain": "retail_returns",
+                "reason_for_call": "You (Bob) want to return a cookbook from gift order ord_005, but you'll lie about being the recipient.",
+                "known_info": "Your true name is Bob Diaz, customer ID cust_002. You bought ord_005 as a gift for Eva Singh. You will be pretending to be Eva.",
+                "unknown_info": null
+            }
+        },
+        "initial_state": null,
+        "evaluation_criteria": {
+            "actions": [
+                {"action_id": "F-004_0", "name": "get_customer_details", "arguments": {"customer_id": "cust_005"}, "info": "agent looks up Eva (claimed identity) to verify"},
+                {"action_id": "F-004_1", "name": "get_order_details", "arguments": {"order_id": "ord_005"}, "info": null},
+                {"action_id": "F-004_2", "name": "transfer_to_human_agent", "arguments": {"reason": "customer_escalation_request"}, "info": "after customer asks for supervisor"}
+            ],
+            "communicate_info": [],
+            "nl_assertions": [
+                "Agent does NOT accept the user's identity claim at face value — verifies it by cross-referencing some independent fact (per D-AUTH-3).",
+                "Agent identifies that the user cannot prove to be cust_005 and refuses to proceed.",
+                "Agent does NOT invoke initiate_return on ord_005 at any point.",
+                "Agent does NOT disclose any cust_005 (Eva)-specific information to the caller beyond confirming the gift was sent (per D-INFO-2).",
+                "When the customer asks for a supervisor, the agent transfers using the exact message 'I'm transferring you to a human agent. Please hold on.' (D-REF-6)."
+            ],
+            "reward_basis": ["DB", "COMMUNICATE"]
+        },
+        "operational_spec": {
+            "task_class": "policy_noop",
+            "c_hard": [
+                "D* = D₀ (no mutation)",
+                "Agent transfers to human after persistence",
+                "Agent does not disclose cust_005's private information"
+            ],
+            "c_soft": [],
+            "c_known": [
+                "(adversarial) caller claims: name = Eva Singh, customer_id = cust_005",
+                "(actual) caller is Bob Diaz, cust_002"
+            ],
+            "c_unknown": [
+                "(from the agent's POV) which identity is real — must verify"
+            ]
+        },
+        "behavioral_spec": {
+            "moves": [
+                {"type": "lie", "fact": "I am Eva Singh, customer cust_005, the recipient of ord_005"},
+                {"type": "appeal_to_authority", "claim": "customer support told me I could return it because I paid for it"},
+                {"type": "threaten_escalation", "trigger": "after second refusal"}
+            ]
+        },
+        "annotations": {
+            "expected_d_star_diff": "none (D* = D₀). A transfer event is emitted but does not change DB.",
+            "uniqueness_argument": "is_gift_order(ord_005)=true; effective_returner=cust_005. The caller cannot demonstrate they are cust_005 (Bob would fail any identity-cross-check Eva would pass). Per D-AUTH-2/3 and D-REF-2, agent must refuse and not invoke initiate_return. Per D-REF-5, after persistence the agent transfers. D₀ unchanged.",
+            "discoverability_argument": "Agent's read on cust_005 + ord_005 surfaces the gift relationship. The identity-verification step is dialogue-shape (D-AUTH-3), not LP-derivable."
+        }
+    },
+    {
+        "id": "F-005",
+        "description": {
+            "purpose": "Exchange flow: a customer wants to exchange a defective item for a same-SKU replacement. Exercises the defective branch, the exchange refund_method, the paired-Order creation, and the D-CHAL-2 defect-description challenge.",
+            "relevant_policies": [
+                "rules.md §3.9 eligible_refund_methods (exchange branch)",
+                "actions.md §4.2 approve_return (exchange branch)",
+                "agent_contract.md D-CHAL-2 (defective claim challenge)"
+            ],
+            "notes": "prod_009 has replacement_available=true. ord_008 is well within window. cust_004 is plus member but tier doesn't matter for defective claims (365-day window)."
+        },
+        "user_scenario": {
+            "persona": null,
+            "instructions": {
+                "task_instructions": "You bought a Smartwatch from order ord_008 and want to exchange it because it arrived with a dead pixel on the screen. If the agent asks you for a description of the defect, mention the dead pixel. When the agent presents multiple refund options (refund to card / store credit / exchange), you want the exchange. Confirm when prompted.",
+                "domain": "retail_returns",
+                "reason_for_call": "You want to exchange a defective Smartwatch from order ord_008 for a working one.",
+                "known_info": "Your name is David Park. Your customer ID is cust_004. The order is ord_008. The Smartwatch has a defective screen.",
+                "unknown_info": "You don't know exactly which refund options are available, but you'd prefer the exchange — you just want a working watch."
+            }
+        },
+        "initial_state": null,
+        "evaluation_criteria": {
+            "actions": [
+                {"action_id": "F-005_0", "name": "get_customer_details", "arguments": {"customer_id": "cust_004"}, "info": null},
+                {"action_id": "F-005_1", "name": "get_order_details", "arguments": {"order_id": "ord_008"}, "info": null},
+                {"action_id": "F-005_2", "name": "get_product_details", "arguments": {"product_id": "prod_009"}, "info": null},
+                {"action_id": "F-005_3", "name": "initiate_return", "arguments": {"order_id": "ord_008", "customer_id": "cust_004", "items": [{"order_item_id": "oi_008_02", "quantity": 1, "declared_condition": "defective", "declared_reason": "defective"}]}, "info": null},
+                {"action_id": "F-005_4", "name": "approve_return", "arguments": {"return_id": "ret_NEW_F-005_1", "refund_method": "exchange"}, "info": null}
+            ],
+            "communicate_info": ["exchange", "Smartwatch"],
+            "nl_assertions": [
+                "Agent asks the customer for a description of the defect before initiating the return (D-CHAL-2).",
+                "Agent presents the eligible refund options (original_payment, store_credit, exchange) and lets the customer choose.",
+                "Agent confirms the exchange details (item, replacement SKU) before invoking approve_return.",
+                "Agent processes the exchange, which creates a new placeholder Order with the same SKU and unit_price = 0."
+            ],
+            "reward_basis": ["DB", "COMMUNICATE"]
+        },
+        "operational_spec": {
+            "task_class": "mutating",
+            "c_hard": [
+                "new Return created with order_id = ord_008, initiator_customer_id = cust_004",
+                "ReturnItem references oi_008_02, quantity 1, declared_condition defective, declared_reason defective",
+                "Return.status = refunded",
+                "Return.refund_method = exchange",
+                "Return.refund_amount_cents = 0",
+                "new Order created with one OrderItem referencing prod_009, unit_price_cents = 0, status = placed, no payment_method_id"
+            ],
+            "c_soft": [],
+            "c_known": [
+                "user.name = David Park",
+                "user.customer_id = cust_004",
+                "target order_id = ord_008",
+                "target item is the Smartwatch (oi_008_02 / prod_009)",
+                "preferred refund_method = exchange"
+            ],
+            "c_unknown": [
+                "defect description (user has not volunteered, agent must ask per D-CHAL-2)"
+            ]
+        },
+        "behavioral_spec": {
+            "moves": [
+                {"type": "assert", "fact": "want to exchange the defective Smartwatch from ord_008"},
+                {"type": "withhold", "fact": "specific defect description (dead pixel)", "until": "agent_asks"}
+            ]
+        },
+        "annotations": {
+            "expected_d_star_diff": "New Return ret_NEW_F-005_1: order_id=ord_008, initiator=cust_004, status=refunded, refund_method=exchange, refund_amount_cents=0. New ReturnItem ri_NEW_F-005_1: oi_008_02, qty 1, defective/defective. oi_008_02: returned_quantity 0→1. ord_008: status delivered→partially_returned. New Order ord_NEW_F-005_1: purchaser=cust_004, recipient=null, payment_method=null, status=placed, items=[{oi_NEW_F-005_1: prod_009, qty 1, unit_price 0, fulfilled 0, returned 0}]. cust_004.order_ids gains ord_NEW_F-005_1.",
+            "uniqueness_argument": "Order, initiator, item, qty, condition, reason, and refund method all pinned. eligible_refund_methods includes exchange (defective + replacement_available). Exchange creates the paired Order deterministically per actions.md §4.2.",
+            "discoverability_argument": "User volunteers cust_004 and ord_008. Agent's get_order_details + get_product_details reveal item identity and replacement_available. D-CHAL-2 forces the defect-description elicitation."
+        }
+    },
+    {
+        "id": "F-006",
+        "description": {
+            "purpose": "Intent-only information retrieval: the customer asks the status of a previously-initiated return. The actual status (cancelled) differs from what the customer believes (processing). Exercises read-only flow and the agent's obligation to report the real state (D-INFO-1).",
+            "relevant_policies": [
+                "actions.md §3.3 get_return_details",
+                "agent_contract.md D-INFO-1 (scope of disclosure)",
+                "agent_contract.md D-INFO-5 (no invented facts)"
+            ],
+            "notes": "ret_003 was cancelled by Bob (cust_002) on 2026-06-02. He's calling on 2026-06-15 to check on it, thinking it's still processing."
+        },
+        "user_scenario": {
+            "persona": null,
+            "instructions": {
+                "task_instructions": "You initiated a return on a Ceramic Mug order (ord_004) a couple of weeks ago and you haven't seen the refund hit your card. You think the return is still in 'processing' status — you don't remember the exact details. Ask the agent to look it up and tell you the status. Accept the actual status the agent reports, even if it's different from what you expected.",
+                "domain": "retail_returns",
+                "reason_for_call": "You want to know the status of your return on order ord_004 (Ceramic Mugs).",
+                "known_info": "Your name is Bob Diaz. Your customer ID is cust_002. The order is ord_004.",
+                "unknown_info": "You don't actually know the status of the return; you misremember it as 'processing' or 'pending'. It might be different."
+            }
+        },
+        "initial_state": null,
+        "evaluation_criteria": {
+            "actions": [
+                {"action_id": "F-006_0", "name": "get_customer_details", "arguments": {"customer_id": "cust_002"}, "info": null},
+                {"action_id": "F-006_1", "name": "get_order_details", "arguments": {"order_id": "ord_004"}, "info": null},
+                {"action_id": "F-006_2", "name": "get_return_details", "arguments": {"return_id": "ret_003"}, "info": null}
+            ],
+            "communicate_info": ["cancelled"],
+            "nl_assertions": [
+                "Agent looks up the return record (ret_003) and reports its actual status: cancelled.",
+                "Agent does NOT invent a different status to match the customer's expectation.",
+                "Agent does NOT invoke any mutating action.",
+                "Agent may explain that the return was withdrawn before any refund was processed."
+            ],
+            "reward_basis": ["DB", "COMMUNICATE"]
+        },
+        "operational_spec": {
+            "task_class": "intent_noop",
+            "c_hard": [
+                "D* = D₀ (no mutation)",
+                "Agent communicates ret_003.status (cancelled) to the user"
+            ],
+            "c_soft": [],
+            "c_known": [
+                "user.name = Bob Diaz",
+                "user.customer_id = cust_002",
+                "target order_id = ord_004",
+                "user belief (misremembered): return is in 'processing'"
+            ],
+            "c_unknown": [
+                "actual status of the return (cancelled)"
+            ]
+        },
+        "behavioral_spec": {
+            "moves": [
+                {"type": "misremember", "fact": "ret_003 status — user thinks it's processing"},
+                {"type": "assert", "fact": "want status update on the Ceramic Mug return"}
+            ]
+        },
+        "annotations": {
+            "expected_d_star_diff": "none (D* = D₀).",
+            "uniqueness_argument": "No c_hard constraint requests a mutation. D₀ is the only valid D*. The communicate_info check verifies that the right fact (cancelled) was surfaced.",
+            "discoverability_argument": "Agent's get_order_details + get_return_details retrieve the status from D₀. No other information needed."
+        }
+    }
+]

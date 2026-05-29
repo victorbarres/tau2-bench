@@ -309,22 +309,36 @@ the operation exists.
 
 ---
 
-## 6. The "one mutating action per task" convention
+## 6. The "one logical transition per task" convention
 
-For v0, every task may contain **at most one** mutating action across the
-entire dialogue. This is the same convention airline implicitly uses (each
-task's gold action list contains zero or one DB-mutating call).
+For v0, every task may contain **at most one logical state transition**
+between `D₀` and `D*`. The verifier's contract is `valid_transition(D₀, D₁)`
+as a single step.
+
+What this allows:
+- A task with **zero** mutating tool calls (intent_noop / policy_noop).
+- A task with **one** mutating tool call on a pre-existing entity (e.g.,
+  `approve_return` on a pending Return that already exists in `D₀`, or
+  `cancel_return` on a pending Return).
+- A task with **the `initiate_return` + `approve_return` pair** on a single
+  new Return — these compose into one logical transition (a Return is
+  created and immediately finalized). Two tool calls, one logical
+  transition.
+
+What this forbids:
+- Multiple mutations on **different entities**. E.g., "cancel return A and
+  also initiate return B" is two logical transitions and must be split
+  into two tasks.
+- The `initiate_return` + `approve_return` pair on **different** Returns
+  in the same task — that's the same kind of multi-entity mutation, just
+  obfuscated.
 
 Read actions are unlimited.
 
-If a task requires multiple mutations (e.g., cancel return A AND initiate
-return B), it is split into two tasks. This keeps the verifier's transition
-relation as `valid_transition(D₀, D₁)` — single-step. Multi-step transition
-chaining is deferred to v1.
-
-This convention is declared here at Layer C because it constrains the action
-surface; it is also referenced in Layer F (task model) as a hard constraint
-on `OperationalSpec`.
+This convention is declared here at Layer C because it constrains the
+action surface; it is also referenced in Layer F (task model) as a hard
+constraint on `OperationalSpec`. Multi-transition tasks are deferred to
+v1.
 
 ---
 

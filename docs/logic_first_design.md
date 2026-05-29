@@ -363,7 +363,7 @@ layer:
 | C — Actions | [`actions.md`](../data/tau2/domains/retail_returns/actions.md) | drafted |
 | D — Agent contract | [`agent_contract.md`](../data/tau2/domains/retail_returns/agent_contract.md) | drafted |
 | E — `D₀` | [`db.json`](../data/tau2/domains/retail_returns/db.json) + [`db_design.md`](../data/tau2/domains/retail_returns/db_design.md) | drafted |
-| F — Tasks | `tasks.json` | TODO |
+| F — Tasks | [`tasks.json`](../data/tau2/domains/retail_returns/tasks.json) + [`tasks_design.md`](../data/tau2/domains/retail_returns/tasks_design.md) | drafted (6 tasks) |
 
 The methodology's success criterion is: by the time all six layers are
 populated for retail_returns, we should be able to (a) verify a hand-authored
