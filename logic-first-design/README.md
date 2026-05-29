@@ -7,9 +7,15 @@ database state, and benchmark tasks from it, rather than authoring
 those artifacts independently and reconciling them by hand.
 
 This package is **self-contained**. It includes the methodology, a
-fully worked example (retail returns & refunds), a reference
-extraction of an existing prose policy (the tau2-bench airline
-domain), and a working v0 verifier.
+fully worked example (retail returns & refunds), an airline retrofit
+demonstrating generalization, two Clingo-based verifiers, a scenario
+generator, and a cross-validation harness that confirms the
+methodology agrees with upstream tau2-bench tasks on 8 out of 8
+cancellation cases.
+
+A thorough writeup of what was built, proven, and learned lives at
+[`docs/findings.md`](docs/findings.md). Start there if you want the
+evaluation; start with `docs/methodology.md` if you want the method.
 
 ```
 logic-first-design/
