@@ -717,6 +717,53 @@ from the spec; it does not commit that we build the renderer now.</p>
    independently mid-conversation (real-time inventory, live pricing) need a
    richer model.</p>
 </li>
+<li>
+<p><strong>Temporal world dynamics.</strong> Time itself is under-modeled. A reservation&rsquo;s
+   <code>created_time</code> matters via <code>recent_booking</code>, but the <em>passage of time</em>
+   during a conversation isn&rsquo;t represented. Domains where deadlines pass,
+   interest accrues, or trial periods expire mid-task need temporal
+   predicates that depend on a clock the verifier advances. Time is also,
+   more broadly, an under-studied axis in benchmark methodology; the
+   methodology doesn&rsquo;t currently push on it.</p>
+</li>
+<li>
+<p><strong>Code-implemented state simulators.</strong> Domains whose state is implemented
+   imperatively (a <em>simulated phone</em> with code-implemented signal-strength,
+   battery, network behavior — telecom-style) bend the &ldquo;world is a relational
+   DB&rdquo; assumption hard. Possible mitigation: declare device states +
+   transitions in Layer A (state-machine abstraction); the code is the
+   implementation but the abstraction stays declarative. Physics-y continuous
+   state (signal RSSI, battery percentage) is unmodeled in v0; pushing it
+   into Layer A loses fidelity. Open methodology gap; flagged for telecom
+   retrofitting.</p>
+</li>
+<li>
+<p><strong>Internal policy contradictions and stakeholder loops.</strong> The verifier
+   catches &ldquo;this task is infeasible&rdquo; but not &ldquo;your policy contradicts
+   itself.&rdquo; A good agent in production should <em>raise</em> unresolvable conflicts
+   with the developer rather than refusing or transferring; the methodology
+   doesn&rsquo;t currently model the developer/user/maintenance stakeholder loop.
+   See <code>next_steps.md</code> §1.10 for the verifier-side policy-consistency
+   self-check; the deeper stakeholder-routing question is a v2 design
+   question.</p>
+</li>
+<li>
+<p><strong>The agent&rsquo;s view extends beyond Layer C.</strong> Tool docstrings, system
+   prompts, and rendered tool descriptions are part of what the agent
+   consumes but aren&rsquo;t formally Layer C outputs in v0. The methodology
+   should either generate them from Layer C deterministically or declare
+   them as the rendered NL surface of an action and consistency-check
+   them. Currently hand-written and trust-based. See <code>next_steps.md</code> §1.13.</p>
+</li>
+<li>
+<p><strong>Three distinct rendered-NL audiences are conflated as &ldquo;prose.&rdquo;</strong> §8 of
+   this document treats the rendered prose as a single artifact. In reality
+   there are three audiences with different consistency requirements: the
+   user simulator (adversarial moves, fallbacks); the agent (deontic
+   clarity, refusal grounds); the human consumers of the company-facing
+   policy document (auditability, regulation citation). See <code>next_steps.md</code>
+   §1.12 for the split.</p>
+</li>
 </ol>
 <hr />
 <h2 id="10-phasing">10. Phasing</h2>

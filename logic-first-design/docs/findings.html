@@ -355,6 +355,7 @@ hr {
 <li><a href="#64-soft-deleted-entities">6.4 Soft-deleted entities</a></li>
 <li><a href="#65-the-single-payment-v0-simplification-q-d-a1">6.5 The single-payment v0 simplification (Q-D-A1)</a></li>
 <li><a href="#66-feebaggage-allocation-in-refund-totals">6.6 Fee/baggage allocation in refund totals</a></li>
+<li><a href="#67-the-agents-effective-spec-extends-beyond-layer-c">6.7 The agent&rsquo;s effective spec extends beyond Layer C</a></li>
 </ul>
 </li>
 <li><a href="#7-cross-validation-a-deeper-look">7. Cross-validation: a deeper look</a></li>
@@ -1007,6 +1008,32 @@ the single-passenger insurance fee, which our v0 doesn&rsquo;t compute.</p>
 extra baggage is $50 each) but the Solve implementation doesn&rsquo;t roll
 these into the refund total. Adding it is ~20 lines of code; it&rsquo;s
 been left for v1 to keep the cancellation-slice scope tight.</p>
+<h3 id="67-the-agents-effective-spec-extends-beyond-layer-c">6.7 The agent&rsquo;s effective spec extends beyond Layer C</h3>
+<p>Surfaced after the cancellation-slice retrofit. The agent under test
+doesn&rsquo;t only consume <code>actions.md</code> — it also consumes the Python
+<strong>tool docstrings</strong> that get rendered into its tool-definition
+prompts. Those docstrings can contain behavioral constraints
+(parameter descriptions, return-value semantics, examples) that
+aren&rsquo;t reflected in <code>actions.md</code>, and conversely <code>actions.md</code> can
+specify behavior the docstrings don&rsquo;t surface.</p>
+<p>In v0 the docstrings are hand-written and trust-based — there is no
+consistency check between Layer C and the rendered tool description.
+This is a real gap in the &ldquo;single source of truth&rdquo; claim: Layer C is
+the source of truth for <em>us</em>, but the agent&rsquo;s effective spec is
+Layer C plus whatever the tool implementer chose to write in the
+docstring.</p>
+<p>Two clean fixes (both in <code>next_steps.md</code> §1.13):
+- Declare tool docstrings as an explicit Layer C output. Hand-write
+  them in v0, but consistency-check against <code>actions.md</code> the same
+  way prose is consistency-checked against the spec.
+- v1: render tool docstrings deterministically from action specs.</p>
+<p>A third option — and probably the right long-term answer — is to
+acknowledge that the rendered NL surface the agent consumes has its
+own audience requirements (deontic clarity, refusal grounds) that
+are distinct from the human-facing <code>policy.md</code> (auditability) and
+the user-simulator&rsquo;s <code>task_instructions</code> (adversarial moves). All
+three are &ldquo;rendered NL,&rdquo; but they shouldn&rsquo;t be conflated into a
+single output (see <code>next_steps.md</code> §1.12).</p>
 <hr />
 <h2 id="7-cross-validation-a-deeper-look">7. Cross-validation: a deeper look</h2>
 <p>The 8 cross-validated tasks each test a different branch. The pattern

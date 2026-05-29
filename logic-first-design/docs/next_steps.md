@@ -172,6 +172,137 @@ methodology.md.
 uv run python tools/render_doc.py next_steps
 ```
 
+### 1.8 Solo-mode / direct-task runner
+
+**Status**: doesn't exist. The entire eval pipeline assumes the agent
+talks to a user simulator. Conversation is expensive and confounds
+"policy reasoning ability" with "dialogue navigation."
+
+**Why it matters**: lets you measure the *policy-reasoning* difficulty
+of a task independent of the dialogue. Given a structured intent, the
+agent already has enough information to solve directly. tau²-bench
+already has a "solo" mode but only for telecom; we'd generalize.
+
+**Dependencies**: none.
+
+**Effort**: ~1 session.
+
+**Sketch**:
+- A runner that hands `operational_spec.intent` to the agent as a
+  structured request (no simulated user).
+- Agent's response is checked via the existing Solve-derived D*.
+- Difficulty becomes measurable on the LP axis alone.
+
+### 1.9 Discriminating-atom output when Verify reports ambiguous
+
+**Status**: Verify reports `ambiguous_<N>plus` when N>1 models exist
+but doesn't say *what* discriminates them.
+
+**Why it matters**: turns ambiguity from an opaque error into a
+constructive hint. The author can see "models differ on
+`picked_refund_method`; pin it to resolve" and immediately know what
+to add to `c_hard`. Supports iterative spec authoring: write the
+spec → see what's free → tighten → re-verify.
+
+**Dependencies**: none. The information is already in the answer sets;
+just needs surfacing.
+
+**Effort**: ~1 session.
+
+**Sketch**:
+- After Clingo returns N models, compute the per-predicate symmetric
+  difference between them.
+- Report: "Models differ on these atoms: {…}. Pin one of them in
+  `intent` to disambiguate."
+
+### 1.10 Policy-consistency self-check
+
+**Status**: the verifier checks tasks against `rules.md`. It does not
+check `rules.md` against itself for internal contradictions.
+
+**Why it matters**: if `rules.md` is internally inconsistent (two
+derivation rules with mutually exclusive heads, an integrity
+constraint that no D₀ can satisfy), the verifier reports `infeasible`
+on every task without saying *why*. The dev should be told the policy
+is broken, not that their task is wrong.
+
+**Dependencies**: none.
+
+**Effort**: ~30 minutes.
+
+**Sketch**:
+- New verifier mode: run Clingo on (closed-enum facts, D₀, Layer B)
+  with no intent and no choice rule.
+- If 0 models: policy contradicts itself or D₀. Report which integrity
+  constraint fails.
+- Run as a precondition before any task verification; fail fast.
+
+### 1.11 Required-read declaration in intent schema
+
+**Status**: `intent_noop` tasks check that the agent communicated the
+right facts but don't require specific *read actions* (e.g., the
+agent must have authenticated by calling `get_user_details`).
+
+**Why it matters**: tau-bench tasks often require authentication or
+other read actions *before* the response is valid even if no DB
+change happens. Currently we only enforce read-before-mutate via
+D-CONF-5/D-CONF-7 for mutating tasks.
+
+**Dependencies**: none.
+
+**Effort**: ~1 session.
+
+**Sketch**:
+- Add `intent.required_reads: list[{action, args}]` to the schema.
+- Verifier's trajectory check confirms each required read appeared
+  before the agent's response.
+
+### 1.12 Methodology §8 — split into three rendered-NL audiences
+
+**Status**: methodology §8 treats prose as a single rendered artifact.
+In practice there are three:
+- `task_instructions` for the *user simulator* (adversarial moves,
+  withholds, lies, fallbacks).
+- `system_prompt` / tool descriptions for the *agent under test*
+  (deontic clarity, refusal grounds, escalation rules).
+- `policy.md` for *humans inside the company* (auditability, citation
+  to regulations, training material).
+
+**Why it matters**: each has a different audience and consistency
+requirement. Conflating them makes the consistency check vague.
+
+**Dependencies**: none.
+
+**Effort**: ~30 minutes of doc revision.
+
+**Sketch**:
+- Split methodology.md §8 into 8.1 / 8.2 / 8.3 — one per audience.
+- For each, the relevant Layer to render from + the consistency check
+  applicable.
+
+### 1.13 Tool docstring as canonical Layer C output
+
+**Status**: the agent sees Python tool docstrings as part of its tool
+definitions. Those docstrings can contain content not reflected in
+`actions.md`, and conversely, `actions.md` can specify behavior the
+docstring doesn't surface. Currently no consistency check.
+
+**Why it matters**: the tool docstring is *de facto* part of the
+domain spec — it's what the agent actually consumes. Should be in
+Layer C as a generated artifact, or at minimum declared as the
+rendered NL surface of an action and consistency-checked.
+
+**Dependencies**: none.
+
+**Effort**: ~1 session for the convention; longer to actually
+generate docstrings from action specs.
+
+**Sketch**:
+- Add to methodology §3 (downstream artifacts table): "tool docstrings
+  rendered from Layer C."
+- v0: hand-write docstrings, consistency-check against `actions.md`.
+- v1: render docstrings from action specs deterministically.
+
 ---
 
 ## Tier 2 — Coverage extension
@@ -409,6 +540,135 @@ knobs?" Search problem; may need different ASP encoding.
 
 **Effort**: 2-3 sessions.
 
+### 3.6 Counterfactual-world generator (benchmark-contamination detector)
+
+**Status**: doesn't exist. Probably the most novel single application
+of the methodology.
+
+**Why it matters**: benchmark contamination is the dominant
+methodological problem in LLM eval. If a model was trained on
+tau-bench, it can pattern-match against canonical entity names,
+canonical 24-hour thresholds, canonical refund-method-by-condition
+mappings, etc.
+
+If the policy is *purely logical*, we can mechanically construct an
+**isomorphic counterfactual**: rename constants, permute numeric
+thresholds within sound bounds, shuffle the closed-enum vocabulary,
+and verify the resulting domain has the same structural properties.
+The LLM should score equivalently on both. **Performance gap on the
+counterfactual = contamination signal.**
+
+This is a publishable contribution on its own. It's the kind of
+thing only the methodology enables — you cannot do this with a
+prose policy or a hand-coded checker.
+
+**Why it's hard**: maintaining isomorphism is the constraint. Threshold
+permutations must respect orderings (plus's extended window must
+remain longer than regular's); enum renaming must be consistent across
+Layer A/B/C/D; the resulting `D₀` must satisfy all integrity
+constraints. None of this is intractable but it's careful work.
+
+**Dependencies**: existing methodology + verifier. Optionally 3.5
+(difficulty calibration) to control variant difficulty.
+
+**Effort**: 2-3 sessions for a v0 counterfactual generator; the eval
+campaign comparing LLM performance on original vs counterfactual is
+an additional research project.
+
+**Sketch**:
+- Symbol-renaming pass over a verified domain (Layer A + B + E + F
+  consistently renamed).
+- Threshold-permutation pass with ordering constraints.
+- Verify the result is structurally isomorphic (same rule-firing
+  pattern on each task in the corpus).
+- Eval LLM on original vs variants; large gap = strong evidence
+  the original was in training data.
+
+### 3.7 Adaptive / fluid benchmarking via rule-level weakness tracking
+
+**Status**: doesn't exist. The methodology's *unique* enabler is
+rule-level granularity — we know which Layer B predicates fired on
+each task.
+
+**Why it matters**: traditional benchmarking gives task-level
+pass/fail signals. With rule-level tracking we can ask which *policy
+branches* the LLM fails on (e.g., "fails on the insurance + covered
+branch 70% of the time, fine elsewhere"). With Generate already
+working, the next move is to *target* failing branches with the next
+batch of tasks.
+
+This is the fluid-benchmarking pattern (Rodriguez et al. and
+descendants) applied to LLM policy reasoning specifically. The
+methodology specifically enables it because we have a rule firing
+trace per task.
+
+**Why it's hard**: requires (a) per-task rule-firing instrumentation
+in the eval, (b) failure attribution to specific rules, (c) generator
+that conditions on which rules to exercise. Each is a small piece;
+together they're a coherent system.
+
+**Dependencies**: 3.5 (constraint inversion) helps. The metrics work
+(pruning + coverage) is already in place.
+
+**Effort**: ~3-4 sessions for a v0 adaptive loop.
+
+**Sketch**:
+- Eval logs which Layer B predicates fired on each task and whether
+  the agent's response was correct.
+- Aggregation: per-predicate failure rate across the corpus.
+- Generator extension: "produce a task that exercises rules R₁ ∧ R₂"
+  where R₁, R₂ are the worst-performing rules.
+- Closed loop: eval → analyze → generate → eval → ...
+
+### 3.8 Logic-driven user simulator
+
+**Status**: the user simulator is an LLM following NL
+`task_instructions`. Its responses are entirely model-generated.
+
+**Why it matters**: the user has structured goals (intent),
+constraints (c_hard), and fallback logic (c_soft). Each could be
+*computed* rather than generated. The LLM's role would shrink to:
+"render the computed response as natural language."
+
+This is a cleaner separation between *what* the user would say (a
+logical derivation from their goals + conversation state) and *how*
+they say it (surface NL). It also makes adversarial moves more
+controllable — `lie` becomes a structured action, not a prompt-tuned
+behavior.
+
+**Why it's hard**: requires modeling the user's belief state across
+the conversation. Connects to discoverability (3.3).
+
+**Dependencies**: 3.3 (discoverability formalization) is a soft
+prerequisite.
+
+**Effort**: research project. Months for a real implementation.
+
+### 3.9 Dialogue logic (dialogue acts beyond moves)
+
+**Status**: v0 has a controlled vocabulary of moves (`lie`,
+`insist`, `withhold`). There's no grammar.
+
+**Why it matters**: real customer-service conversations have a
+structured pattern — opening, identification, problem statement,
+clarification, resolution proposal, confirmation, close. Each turn
+has a *dialogue act* (greeting, request, clarification-question,
+counter-proposal). A formalism for dialogue acts would let us:
+- Detect when the user simulator deviates from a coherent pattern.
+- Guide the agent through standard customer-service stages.
+- Test compliance with dialogue conduct rules (D-TURN-1 etc.) more
+  rigorously.
+
+Connects to Walton-style argumentation dialogue games and to BDI
+agent theory.
+
+**Why it's hard**: dialogue act formalisms are well-studied but
+fragmented. Picking the right granularity is research.
+
+**Dependencies**: 3.2 (behavioral DSL) overlaps.
+
+**Effort**: research project.
+
 ---
 
 ## Tier 4 — Productionization
@@ -509,18 +769,25 @@ Pick the row matching your goal:
 |---|---|---|
 | Strengthen the empirical claim | 2.1 (rest of airline cancel) → 2.5 (behavioral cross-val) | 2.6 (third domain) |
 | Make the methodology *usable* by others | 1.3 (unified verifier) → 4.4 (extract repo) → 4.5 (license) | 4.3 (authoring tool) |
-| Ship a publishable result | 1.5 (version) → 4.4 (extract) → ?? | findings.md is largely ready |
+| Make the methodology *cheaper to use* | 1.8 (solo mode) + 1.9 (ambiguity hints) + 1.13 (tool docstrings) | 4.3 (authoring tool) |
+| Ship a publishable result | 3.6 (counterfactual contamination detection) — likely the single most novel application | 1.5 (version) + 4.4 (extract) |
 | Get coverage of the airline corpus | 1.1 (multi-payment) → 2.1 → 2.2 (booking) → 2.3 (modify) → 2.4 (compensation) | 4.1 (eval integration) |
 | Demonstrate methodology limits | 3.3 (discoverability) or 3.4 (multi-transition) | 3.2 (behavioral DSL) |
-| Build a generator for benchmark corpora | 3.5 (difficulty calibration) | 1.4 (negative test mode) |
-| Just clean up loose ends before stopping | 1.1, 1.2, 1.5, 1.7 | done |
+| Build a generator for benchmark corpora | 3.5 (difficulty calibration) + 3.7 (adaptive benchmarking) | 1.4 (negative test mode) |
+| Detect benchmark contamination | 3.6 (counterfactual world generator) | 3.5 (difficulty calibration) for matched-difficulty variants |
+| Just clean up loose ends before stopping | 1.1, 1.2, 1.5, 1.7, 1.10 | 1.12, 1.13 (doc polish) |
 
 Most productive next individual session, ranked by ROI:
 1. **1.3 (unify verifiers)** — unlocks every Tier 2 / Tier 4 item.
 2. **1.1 + 1.2 (multi-payment + fees)** — closes the documented v0
    gaps and unblocks 2.1.
 3. **2.1 (finish cancel cross-val)** — 11/11 is much stronger than 8/8.
-4. **2.6 (third domain)** — most "wow" result if 1.3 is already done.
+4. **3.6 (counterfactual contamination detector)** — most "wow" /
+   most likely publishable single contribution.
+5. **2.6 (third domain)** — strong methodology-generalization result
+   if 1.3 is already done.
+6. **1.8 (solo mode)** + **1.9 (ambiguity hints)** — cheap, immediate
+   usability wins for any author.
 
 ---
 

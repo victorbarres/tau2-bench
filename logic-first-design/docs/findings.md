@@ -503,6 +503,37 @@ extra baggage is $50 each) but the Solve implementation doesn't roll
 these into the refund total. Adding it is ~20 lines of code; it's
 been left for v1 to keep the cancellation-slice scope tight.
 
+### 6.7 The agent's effective spec extends beyond Layer C
+
+Surfaced after the cancellation-slice retrofit. The agent under test
+doesn't only consume `actions.md` — it also consumes the Python
+**tool docstrings** that get rendered into its tool-definition
+prompts. Those docstrings can contain behavioral constraints
+(parameter descriptions, return-value semantics, examples) that
+aren't reflected in `actions.md`, and conversely `actions.md` can
+specify behavior the docstrings don't surface.
+
+In v0 the docstrings are hand-written and trust-based — there is no
+consistency check between Layer C and the rendered tool description.
+This is a real gap in the "single source of truth" claim: Layer C is
+the source of truth for *us*, but the agent's effective spec is
+Layer C plus whatever the tool implementer chose to write in the
+docstring.
+
+Two clean fixes (both in `next_steps.md` §1.13):
+- Declare tool docstrings as an explicit Layer C output. Hand-write
+  them in v0, but consistency-check against `actions.md` the same
+  way prose is consistency-checked against the spec.
+- v1: render tool docstrings deterministically from action specs.
+
+A third option — and probably the right long-term answer — is to
+acknowledge that the rendered NL surface the agent consumes has its
+own audience requirements (deontic clarity, refusal grounds) that
+are distinct from the human-facing `policy.md` (auditability) and
+the user-simulator's `task_instructions` (adversarial moves). All
+three are "rendered NL," but they shouldn't be conflated into a
+single output (see `next_steps.md` §1.12).
+
 ---
 
 ## 7. Cross-validation: a deeper look
