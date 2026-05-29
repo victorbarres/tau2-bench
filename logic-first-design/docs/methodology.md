@@ -406,20 +406,41 @@ Schema adapter pulls subset of upstream `db.json`, translates to our
 ontology format, runs our Clingo verifier; verdict compared against the
 upstream task's expected outcome.
 
-Result: **3/3 agreement.**
+Result: **8/8 agreement** (extended from initial 3/3).
 
-| Upstream task | User | Reservation | Expected | Got |
-|---|---|---|---|---|
-| Task 0 | Emma Kim (gold) | EHGLP3 (~11d, basic_economy, no insurance) | policy_refused | policy_refused ✓ |
-| Task 1 | Raj Sanchez (silver) | Q69X3R (~29h, economy, no insurance) | policy_refused | policy_refused ✓ |
-| Task 19 | Olivia Gonzalez | Z7GOZK (~43h, basic_economy, **insurance=yes**) | unique (cancel succeeds) | unique ✓ |
+| # | User | Reservation | Branch tested | Expected | Got |
+|---|---|---|---|---|---|
+| 0 | Emma Kim | EHGLP3 (gold, basic_economy, no ins, ~11d) | all-grounds-fail | policy_refused | ✓ |
+| 1 | Raj Sanchez | Q69X3R (silver, economy, no ins, ~29h) | outside 24h window | policy_refused | ✓ |
+| 14 | Mohamed Silva | K1NW8N (basic_economy, no ins, **~22.9h**) | recent_booking at boundary | unique | ✓ |
+| 19 | Olivia Gonzalez | Z7GOZK (basic_economy, **ins=yes**, ~43h) | insurance + health covered | unique | ✓ |
+| 26 | Amelia Sanchez | 3FRNFB (basic_economy, no ins, ~9d) | all-grounds-fail | policy_refused | ✓ |
+| 29 | Raj Brown | VA5SGQ (economy, **ins=yes**, ~7d) | insurance + health covered | unique | ✓ |
+| 47 | Sophia Silva | H8Q05L (basic_economy, **ins=yes**, reason=birthday) | insurance branch ≠ uncovered reason | policy_refused | ✓ |
+| 49 | Anya Garcia | 3RK2T9 (basic_economy, **ins=no**, user *lies* about it) | ground truth vs customer claim | policy_refused | ✓ |
 
-Task 19 specifically exercises the **insurance + covered-reason
-branch**: the user's "I feel unwell" prose maps to `intent.cancellation_reason
-= "other"` + `intent.insurance_covers = true`, and `cancellable/2`
-correctly fires via the insurance ground clause. This is the
-methodology's structured-intent + external-predicate pattern paying
-off on a task it didn't design.
+The tricky cases (47, 49) are where the methodology earns its keep:
+- **47** has insurance=yes but the reason isn't health/weather. The
+  external `insurance_covers/1` predicate is correctly false because
+  the task's `intent.insurance_covers` is false. The verifier
+  refuses despite insurance being purchased.
+- **49** has insurance=no but the user *claims* she purchased it.
+  The verifier sees ground truth (D₀'s `has_travel_insurance` = false)
+  and refuses regardless of the customer's claim. The Q1 resolution —
+  `insurance_covers/1` is fed from the verifier's structured input,
+  not derived from a customer-supplied closed enum — holds against
+  adversarial input.
+
+Solve also working: the airline verifier now produces structured D*
+diffs for successful cancellations (status active→cancelled, reason
+set, per-payment refund events for credit cards, balance increments
+for gift cards). Known v0 gap surfaced by cross-validation: refund
+totals don't include insurance/baggage fees (computed from segment
+prices × passengers only). e.g., VA5SGQ Solve shows $656; upstream's
+payment_history says $686; the $30 difference is the single-passenger
+insurance fee. Q-D-A1 single-payment simplification confirmed
+sufficient for cancellation-slice cross-validation; per-payment
+allocation and fee computation are v1.
 
 The earlier extraction draft lives at
 [`../domains/airline_reference/policy_logic.md`](../domains/airline_reference/policy_logic.md);

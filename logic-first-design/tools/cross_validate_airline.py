@@ -46,6 +46,7 @@ from clingo_verify_airline import (  # noqa: E402
     encode_db,
     encode_task,
     verify,
+    solve_task,
     extract_asp_from_rules_md,
     RULES_PATH,
 )
@@ -65,20 +66,17 @@ class CrossValSpec:
 
 
 CROSS_VAL_SPECS = {
+    # === Refusal cases (policy_noop expected) ===
     "0": CrossValSpec(
         upstream_task_id="0",
         intent={
             "action": "cancel_reservation",
             "reservation_id": "EHGLP3",
             "cancellation_reason": "change_of_plan",
-            # Emma claims insurance from a previous trip, but the
-            # reservation's insurance field is "no" — under our Q1
-            # resolution the verifier sees ground truth: no coverage.
             "insurance_covers": False,
         },
         expected_task_class="policy_noop",
-        notes="Emma Kim: gold member, basic_economy, no insurance, "
-              "booked ~11 days ago. None of the 4 cancellation grounds applies.",
+        notes="Emma Kim: gold, basic_economy, no insurance, ~11d ago. None of the 4 cancellation grounds applies.",
     ),
     "1": CrossValSpec(
         upstream_task_id="1",
@@ -89,22 +87,85 @@ CROSS_VAL_SPECS = {
             "insurance_covers": False,
         },
         expected_task_class="policy_noop",
-        notes="Raj Sanchez: silver, economy, no insurance, booked ~29h ago. "
-              "Outside 24h window; no insurance; no business; no airline cancellation.",
+        notes="Raj Sanchez: silver, economy, no insurance, ~29h ago. Outside 24h window.",
+    ),
+    "26": CrossValSpec(
+        upstream_task_id="26",
+        intent={
+            "action": "cancel_reservation",
+            "reservation_id": "3FRNFB",
+            "cancellation_reason": "change_of_plan",
+            "insurance_covers": False,
+        },
+        expected_task_class="policy_noop",
+        notes="Amelia Sanchez: basic_economy, no insurance, ~9d ago. No eligibility ground holds.",
+    ),
+    "47": CrossValSpec(
+        upstream_task_id="47",
+        intent={
+            "action": "cancel_reservation",
+            "reservation_id": "H8Q05L",
+            "cancellation_reason": "other",
+            # Sophia HAS insurance but her reason is "best friend's birthday"
+            # — NOT health/weather. insurance_covers=false despite insurance
+            # being purchased. Tests the precise scope of the insurance branch.
+            "insurance_covers": False,
+        },
+        expected_task_class="policy_noop",
+        notes="Sophia Silva: basic_economy, INSURANCE=yes, but reason is birthday "
+              "(not health/weather). insurance_covers=false → refusal.",
+    ),
+    "49": CrossValSpec(
+        upstream_task_id="49",
+        intent={
+            "action": "cancel_reservation",
+            "reservation_id": "3RK2T9",
+            "cancellation_reason": "other",
+            # User LIES about having insurance. Reservation says insurance=no
+            # — verifier sees ground truth: insurance_covers=false because
+            # the insurance branch requires has_travel_insurance which is false.
+            "insurance_covers": False,
+        },
+        expected_task_class="policy_noop",
+        notes="Anya Garcia: basic_economy, INSURANCE=NO, ~13d ago. User claims insurance; "
+              "ground truth says no. Cancellation correctly denied.",
+    ),
+    # === Successful-cancel cases (mutating expected) ===
+    "14": CrossValSpec(
+        upstream_task_id="14",
+        intent={
+            "action": "cancel_reservation",
+            "reservation_id": "K1NW8N",
+            "cancellation_reason": "change_of_plan",
+            "insurance_covers": False,
+        },
+        expected_task_class="mutating",
+        notes="Mohamed Silva: basic_economy, no insurance, ~22.9h ago. "
+              "Eligible via recent_booking (just within 24h window).",
     ),
     "19": CrossValSpec(
         upstream_task_id="19",
         intent={
             "action": "cancel_reservation",
             "reservation_id": "Z7GOZK",
-            # User cites being unwell ("you feel unwell"); under our
-            # methodology this is a health reason covered by insurance.
             "cancellation_reason": "other",
             "insurance_covers": True,
         },
         expected_task_class="mutating",
-        notes="Olivia Gonzalez: basic_economy, INSURANCE = yes, booked ~43h ago. "
-              "Eligible via the insurance + covered-reason branch.",
+        notes="Olivia Gonzalez: basic_economy, INSURANCE=yes, ~43h ago. "
+              "Eligible via insurance + covered (health: feels unwell).",
+    ),
+    "29": CrossValSpec(
+        upstream_task_id="29",
+        intent={
+            "action": "cancel_reservation",
+            "reservation_id": "VA5SGQ",
+            "cancellation_reason": "other",
+            "insurance_covers": True,
+        },
+        expected_task_class="mutating",
+        notes="Raj Brown: economy, INSURANCE=yes, ~7d ago. Task instructions explicitly "
+              "say 'mention your health problem' — insurance + health → covered.",
     ),
 }
 
@@ -284,6 +345,7 @@ class CrossValResult:
     matches: bool
     notes: str = ""
     sample_atoms: list[str] = field(default_factory=list)
+    solve_diff: list[str] = field(default_factory=list)
 
 
 def _expected_outcome(expected_class: str) -> str:
@@ -298,7 +360,6 @@ def cross_validate(spec: CrossValSpec, upstream_db: dict, layer_b: str) -> Cross
     subset_db = extract_subset(upstream_db, spec.intent)
     d0_facts = encode_db(subset_db)
 
-    # Build a task envelope that encode_task() can consume.
     task = {
         "id": f"XV-{spec.upstream_task_id}",
         "operational_spec": {
@@ -312,6 +373,17 @@ def cross_validate(spec: CrossValSpec, upstream_db: dict, layer_b: str) -> Cross
     expected_outcome = _expected_outcome(spec.expected_task_class)
     matches = result.verdict == expected_outcome
 
+    # If the verifier says cancel succeeds, also derive D* via Solve so we
+    # can show the structured diff that cancellation would produce on the
+    # upstream subset.
+    solve_diff: list[str] = []
+    if result.verdict == "unique":
+        sr = solve_task(encoding, subset_db)
+        if sr.success:
+            solve_diff = sr.diff
+        else:
+            solve_diff = [f"(solve failed: {sr.error})"]
+
     return CrossValResult(
         upstream_task_id=spec.upstream_task_id,
         intent=spec.intent,
@@ -322,6 +394,7 @@ def cross_validate(spec: CrossValSpec, upstream_db: dict, layer_b: str) -> Cross
         matches=matches,
         notes=spec.notes,
         sample_atoms=result.sample_model,
+        solve_diff=solve_diff,
     )
 
 
@@ -370,6 +443,10 @@ def main() -> int:
                 print(f"    derivation:")
                 for atom in relevant:
                     print(f"      • {atom}")
+        if r.solve_diff:
+            print(f"    Solve-derived D* diff:")
+            for d in r.solve_diff:
+                print(f"      → {d}")
 
     print("\n" + "=" * 78)
     n_match = sum(1 for r in results if r.matches)

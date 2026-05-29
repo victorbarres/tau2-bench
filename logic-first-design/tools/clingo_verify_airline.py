@@ -86,6 +86,22 @@ def _hours_between(later_iso: str, earlier_iso: str) -> int:
     return int(delta.total_seconds() // 3600)
 
 
+def _asp_safe(s: str) -> str:
+    """
+    Make a string usable as an ASP constant identifier. ASP requires the
+    first character to be a lowercase letter; we prepend 'r' (for
+    "reservation") if the lowercased id starts with a digit. This matters
+    for real upstream reservation ids like '3FRNFB' and '3RK2T9' that
+    would otherwise produce parser errors.
+    """
+    out = s.lower()
+    if not out:
+        return out
+    if out[0].isalpha() or out[0] == "_":
+        return out
+    return f"r{out}"
+
+
 def encode_db(db: dict) -> str:
     """
     Encode the airline DB as ASP facts using the predicate names from
@@ -125,30 +141,30 @@ def encode_db(db: dict) -> str:
 
     # Reservations.
     for rid, r in db["reservations"].items():
-        rid_lower = rid.lower()
-        lines.append(asp_atom("reservation", rid_lower))
-        lines.append(asp_atom("booking_user", rid_lower, r["booking_user_id"]))
-        lines.append(asp_atom("reservation_cabin", rid_lower, r["cabin_class"]))
-        lines.append(asp_atom("reservation_status", rid_lower, r["status"]))
+        rid_asp = _asp_safe(rid)
+        lines.append(asp_atom("reservation", rid_asp))
+        lines.append(asp_atom("booking_user", rid_asp, r["booking_user_id"]))
+        lines.append(asp_atom("reservation_cabin", rid_asp, r["cabin_class"]))
+        lines.append(asp_atom("reservation_status", rid_asp, r["status"]))
         if r.get("has_travel_insurance"):
-            lines.append(asp_atom("has_travel_insurance", rid_lower))
+            lines.append(asp_atom("has_travel_insurance", rid_asp))
 
         # Segments.
         for seg in r["segments"]:
             d = seg["date"].replace("-", "_")
-            lines.append(asp_atom("segment_of", rid_lower, seg["flight_number"].lower(), f"d{d}"))
+            lines.append(asp_atom("segment_of", rid_asp, seg["flight_number"].lower(), f"d{d}"))
 
         # Passengers — positional indices for ASP-grounding purposes.
         for idx in range(len(r["passengers"])):
-            lines.append(asp_atom("passenger", rid_lower, idx + 1))
+            lines.append(asp_atom("passenger", rid_asp, idx + 1))
 
         # Payment usage.
         for pm_id in r["payment_method_ids_used"]:
-            lines.append(asp_atom("payment_used", rid_lower, pm_id))
+            lines.append(asp_atom("payment_used", rid_asp, pm_id))
 
         # External: hours_since_creation.
         hours = _hours_between(current_time, r["created_time"])
-        lines.append(asp_atom("hours_since_creation", rid_lower, hours))
+        lines.append(asp_atom("hours_since_creation", rid_asp, hours))
 
     return "\n".join(lines)
 
@@ -187,7 +203,8 @@ def encode_task(task: dict) -> TaskEncoding:
         )
 
     if action == "cancel_reservation":
-        rid = intent["reservation_id"].lower()
+        rid_original = intent["reservation_id"]
+        rid_asp = _asp_safe(rid_original)
         reason = intent["cancellation_reason"]
         insurance_covers_flag = intent.get("insurance_covers", False)
 
@@ -201,8 +218,8 @@ def encode_task(task: dict) -> TaskEncoding:
         # The "action rules": pin target_reservation + supplied reason +
         # the three preconditions from actions.md §4.1.
         action_rules = f"""
-target_reservation({rid}).
-cancellation_reason_supplied({rid}, {reason}).
+target_reservation({rid_asp}).
+cancellation_reason_supplied({rid_asp}, {reason}).
 
 % Precondition: reservation must be active.
 :- target_reservation(R), not reservation_status(R, active).
@@ -229,7 +246,7 @@ cancellation_reason_supplied({rid}, {reason}).
             family="cancel",
             hypothetical_facts="\n".join(external_facts),
             action_rules=action_rules,
-            target_reservation_id=rid,
+            target_reservation_id=rid_original,  # for db lookup (original case)
             cancellation_reason=reason,
         )
 
@@ -284,6 +301,90 @@ def _expected_for(family: str, task_class: str, model_count: int) -> bool:
     if task_class == "policy_noop":
         return model_count == 0
     return False
+
+
+def reservation_total_cents(reservation: dict) -> int:
+    """
+    Approximate total payment amount: sum of segment prices × passenger count.
+    Real upstream totals include baggage + insurance fees we don't model in
+    v0; this is sufficient for Solve diff display + cross-validation that
+    "cancel succeeds." Full per-payment allocation is Q-D-A1 v1 work.
+    """
+    num_pax = len(reservation["passengers"])
+    return sum(s["segment_unit_price_cents"] for s in reservation["segments"]) * num_pax
+
+
+def apply_cancel_reservation(db: dict, reservation_id: str, reason: str) -> tuple[dict, list[str]]:
+    """
+    Apply cancel_reservation to db (deep copy), return (new_db, structured diff).
+    Mirrors the effects spec in actions.md §4.1.
+    """
+    import copy
+    new_db = copy.deepcopy(db)
+    r = new_db["reservations"][reservation_id]
+    diff: list[str] = []
+
+    # Status + reason.
+    diff.append(f"reservation/{reservation_id}.status: active → cancelled")
+    diff.append(f"reservation/{reservation_id}.cancellation_reason: null → {reason}")
+    r["status"] = "cancelled"
+    r["cancellation_reason"] = reason
+
+    # Per-payment refund (v0 single-payment simplification: full amount to
+    # the one payment method). Per-payment allocation is Q-D-A1 v1 work.
+    total = reservation_total_cents(r)
+    for pm_id in r["payment_method_ids_used"]:
+        pm = new_db["payment_methods"].get(pm_id)
+        if pm is None:
+            diff.append(f"(payment_method/{pm_id} not in encoded subset — refund event skipped)")
+            continue
+        if pm["type"] == "credit_card":
+            diff.append(f"event: refund_to_card({pm_id}, {total} cents = ${total/100:.2f})")
+        elif pm["type"] == "gift_card":
+            old = pm.get("balance_cents", 0)
+            pm["balance_cents"] = old + total
+            diff.append(f"payment_method/{pm_id}.balance_cents: {old} → {pm['balance_cents']}")
+        elif pm["type"] == "travel_certificate":
+            diff.append(f"(travel_certificate/{pm_id}: applied amount {total} not refunded — Q8 reading (a))")
+
+    return new_db, diff
+
+
+@dataclass
+class SolveResult:
+    task_id: str
+    success: bool
+    d_star: dict | None = None
+    diff: list[str] = field(default_factory=list)
+    error: str = ""
+
+
+def solve_task(encoding: TaskEncoding, db: dict) -> SolveResult:
+    """
+    Derive D* by applying the cancel action to D₀. Only called when Verify
+    has reported `unique` (1 model exists). For refusal tasks, D* = D₀.
+    """
+    if encoding.family == "noop":
+        return SolveResult(task_id=encoding.task_id, success=True, d_star=db, diff=[])
+
+    if encoding.family != "cancel":
+        return SolveResult(task_id=encoding.task_id, success=False,
+                           error=f"unsupported family for Solve: {encoding.family}")
+
+    # target_reservation_id is the upstream original (e.g., "Q69X3R" or
+    # "3FRNFB"); look it up directly.
+    rid = encoding.target_reservation_id
+    if rid not in db["reservations"]:
+        return SolveResult(task_id=encoding.task_id, success=False,
+                           error=f"reservation {rid!r} not found in DB")
+
+    try:
+        new_db, diff = apply_cancel_reservation(db, rid, encoding.cancellation_reason)
+        return SolveResult(task_id=encoding.task_id, success=True,
+                           d_star=new_db, diff=diff)
+    except Exception as e:
+        return SolveResult(task_id=encoding.task_id, success=False,
+                           error=f"action simulator failed: {e}")
 
 
 def verify(encoding: TaskEncoding, d0_facts: str, layer_b: str) -> TaskResult:
