@@ -1,0 +1,69 @@
+[
+    {
+        "id": "LIB-T-001",
+        "description": {
+            "purpose": "Happy path. Alice has 0 active loans; Hamlet has 2 copies and only 1 is out (to Bob). Both branches of can_borrow hold.",
+            "notes": "Demonstrates Verify reporting unique + Solve producing a clean diff."
+        },
+        "operational_spec": {
+            "task_class": "mutating",
+            "intent": {
+                "action": "borrow_book",
+                "borrower_id": "alice",
+                "book_id": "hamlet"
+            },
+            "c_hard": [
+                "new Loan created with borrower=alice, book=hamlet, status=active",
+                "alice.active_loan_count: 0 → 1"
+            ]
+        },
+        "annotations": {
+            "expected_d_star_diff": "new loan ret_NEW_LIB-T-001_1; hamlet.available_copies 1→0; alice.active_loan_count 0→1",
+            "uniqueness_argument": "Both alice (count=0 < 3) and hamlet (available_copies=1 ≥ 1) pass can_borrow. Exactly 1 model."
+        }
+    },
+    {
+        "id": "LIB-T-002",
+        "description": {
+            "purpose": "Refusal — borrower at loan cap. Bob has 3 active loans; can_borrow fails on the cardinality branch regardless of book availability.",
+            "notes": "Demonstrates Verify reporting 0 models = policy_refused."
+        },
+        "operational_spec": {
+            "task_class": "policy_noop",
+            "intent": {
+                "action": "borrow_book",
+                "borrower_id": "bob",
+                "book_id": "hamlet"
+            },
+            "c_hard": [
+                "D* = D₀ (policy correctly refuses)"
+            ]
+        },
+        "annotations": {
+            "expected_d_star_diff": "none (D* = D₀)",
+            "uniqueness_argument": "active_loan_count(bob) = 3, fails the N < 3 condition. can_borrow(bob, _) is false for any book. 0 models = policy refused."
+        }
+    },
+    {
+        "id": "LIB-T-003",
+        "description": {
+            "purpose": "Refusal — book out of stock. Alice could borrow but Ulysses has 1 total copy and Bob has it. can_borrow fails on the availability branch.",
+            "notes": "Demonstrates the second refusal branch."
+        },
+        "operational_spec": {
+            "task_class": "policy_noop",
+            "intent": {
+                "action": "borrow_book",
+                "borrower_id": "alice",
+                "book_id": "ulysses"
+            },
+            "c_hard": [
+                "D* = D₀ (policy correctly refuses)"
+            ]
+        },
+        "annotations": {
+            "expected_d_star_diff": "none (D* = D₀)",
+            "uniqueness_argument": "available_copies(ulysses) = 0. has_available_copy(ulysses) is false. can_borrow(alice, ulysses) is false. 0 models = policy refused."
+        }
+    }
+]

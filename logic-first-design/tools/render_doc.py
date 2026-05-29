@@ -406,6 +406,14 @@ PAGE_META = {
                 "Built from 42 papers gathered by parallel research agents; full "
                 "bibliography in <a href=\"references.bib\">references.bib</a>.",
     },
+    "tutorial": {
+        "title": "Tutorial",
+        "subtitle": "A library micro-world — the methodology on the smallest non-trivial example",
+        "meta": "The fastest way to understand what the methodology does. "
+                "Read this first; then "
+                "<a href=\"methodology.html\">methodology.html</a> for the framework "
+                "and <a href=\"findings.html\">findings.html</a> for the results.",
+    },
 }
 
 

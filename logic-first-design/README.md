@@ -13,10 +13,11 @@ generator, and a cross-validation harness that confirms the
 methodology agrees with upstream tau2-bench tasks on 8 out of 8
 cancellation cases.
 
-Four top-level docs, each available as both Markdown and standalone HTML:
+Five top-level docs, each available as both Markdown and standalone HTML:
 
 | Doc | Purpose |
 |---|---|
+| [`docs/tutorial.md`](docs/tutorial.md) / [`.html`](docs/tutorial.html) | **Start here.** A library micro-world — six layers + three operations on the smallest non-trivial example. ~15 min read, 30 sec to run. |
 | [`docs/methodology.md`](docs/methodology.md) / [`.html`](docs/methodology.html) | The framework — 5 principles, 6 layers, 3 operations |
 | [`docs/findings.md`](docs/findings.md) / [`.html`](docs/findings.html) | The empirical writeup — what was built, what was proven, what bent |
 | [`docs/next_steps.md`](docs/next_steps.md) / [`.html`](docs/next_steps.html) | The roadmap — 4 tiers of follow-up work with effort estimates |
@@ -27,7 +28,7 @@ CDN, no images) suitable for sharing as attachments or hosting as static
 pages. To re-render after editing:
 
 ```sh
-uv run python tools/render_doc.py methodology findings next_steps lit_review
+uv run python tools/render_doc.py tutorial methodology findings next_steps lit_review
 ```
 
 ```
