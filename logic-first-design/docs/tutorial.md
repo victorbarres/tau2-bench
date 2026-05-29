@@ -33,6 +33,44 @@ holds, no privacy concerns. Three sorts, two rules, one action.
 The point isn't to be realistic — it's to be small enough to hold in
 your head while you watch the methodology work.
 
+### The methodology in one picture
+
+Six layers stacked on each other; each consumes the layers above.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  A — Ontology       sorts, attributes, closed enumerations     │
+└────────────────────────────────────┬───────────────────────────┘
+                                     │ vocabulary used by
+                                     ▼
+┌────────────────────────────────────────────────────────────────┐
+│  B — World rules    integrity constraints + derivations (ASP)  │
+└────────────────────────────────────┬───────────────────────────┘
+                                     │ predicates consulted by
+                                     ▼
+┌────────────────────────────────────────────────────────────────┐
+│  C — Actions        transition predicates (preconditions etc.) │
+└────────────────────────────────────┬───────────────────────────┘
+                                     │ gated by
+                                     ▼
+┌────────────────────────────────────────────────────────────────┐
+│  D — Agent contract deontic rules (must / may / must not)      │
+└────────────────────────────────────┬───────────────────────────┘
+                                     │ instantiated against
+                                     ▼
+┌────────────────────────────────────────────────────────────────┐
+│  E — Baseline DB    D₀ satisfying every A–C invariant          │
+└────────────────────────────────────┬───────────────────────────┘
+                                     │ pinned by
+                                     ▼
+┌────────────────────────────────────────────────────────────────┐
+│  F — Tasks          (intent, expected D*) tuples               │
+└────────────────────────────────────────────────────────────────┘
+```
+
+We'll walk through each layer in turn, then run all three operations
+(Verify, Solve, Generate-equivalent) and see the results.
+
 ---
 
 ## 2. Layer A — Ontology
@@ -203,6 +241,81 @@ The choices matter:
 These choices give us one happy path and two distinct refusal paths,
 all reachable from the same baseline.
 
+### D₀ at a glance
+
+<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg"
+     style="font-family:-apple-system,BlinkMacSystemFont,Inter,Segoe UI,sans-serif; max-width:100%; height:auto; display:block; margin:1.5rem auto;">
+  <defs>
+    <marker id="lib-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#d97706"/>
+    </marker>
+  </defs>
+
+  <text x="22" y="22" font-size="11" font-weight="700" fill="#6b7280" letter-spacing="0.08em">BORROWERS</text>
+  <text x="442" y="22" font-size="11" font-weight="700" fill="#6b7280" letter-spacing="0.08em">BOOKS</text>
+
+  <!-- alice -->
+  <rect x="20" y="40" width="200" height="70" rx="8" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+  <text x="120" y="65" text-anchor="middle" font-size="17" font-weight="700" fill="#1a1a1a">alice</text>
+  <text x="120" y="86" text-anchor="middle" font-size="12" fill="#374151">0 active loans</text>
+  <text x="120" y="100" text-anchor="middle" font-size="11" fill="#059669" font-weight="600">▲ available to borrow</text>
+
+  <!-- bob -->
+  <rect x="20" y="145" width="200" height="70" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="120" y="170" text-anchor="middle" font-size="17" font-weight="700" fill="#1a1a1a">bob</text>
+  <text x="120" y="191" text-anchor="middle" font-size="12" fill="#374151">3 active loans</text>
+  <text x="120" y="205" text-anchor="middle" font-size="11" fill="#d97706" font-weight="600">⚠ at loan cap</text>
+
+  <!-- Hamlet -->
+  <rect x="440" y="40" width="260" height="65" rx="8" fill="#fafafa" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="570" y="62" text-anchor="middle" font-size="15" font-weight="700" fill="#1a1a1a">Hamlet</text>
+  <text x="570" y="78" text-anchor="middle" font-size="10" fill="#6b7280">2 copies total</text>
+  <rect x="455" y="84" width="115" height="14" rx="3" fill="#fef3c7" stroke="#d97706"/>
+  <text x="513" y="95" text-anchor="middle" font-size="10" fill="#92400e">1 lent</text>
+  <rect x="575" y="84" width="115" height="14" rx="3" fill="#d1fae5" stroke="#059669"/>
+  <text x="633" y="95" text-anchor="middle" font-size="10" fill="#065f46" font-weight="600">1 available</text>
+
+  <!-- Ulysses -->
+  <rect x="440" y="125" width="260" height="55" rx="8" fill="#fafafa" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="570" y="148" text-anchor="middle" font-size="15" font-weight="700" fill="#1a1a1a">Ulysses</text>
+  <text x="570" y="163" text-anchor="middle" font-size="10" fill="#6b7280">1 copy total</text>
+  <rect x="510" y="168" width="120" height="9" rx="3" fill="#fef3c7" stroke="#d97706"/>
+
+  <!-- Iliad -->
+  <rect x="440" y="200" width="260" height="55" rx="8" fill="#fafafa" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="570" y="223" text-anchor="middle" font-size="15" font-weight="700" fill="#1a1a1a">The Iliad</text>
+  <text x="570" y="238" text-anchor="middle" font-size="10" fill="#6b7280">1 copy total</text>
+  <rect x="510" y="243" width="120" height="9" rx="3" fill="#fef3c7" stroke="#d97706"/>
+
+  <!-- Loan arrows from bob to each book -->
+  <path d="M 220 165 Q 330 75 437 70" fill="none" stroke="#d97706" stroke-width="1.5" marker-end="url(#lib-arr)"/>
+  <text x="280" y="108" font-size="10" fill="#92400e">loan_001</text>
+
+  <path d="M 220 180 Q 330 165 437 155" fill="none" stroke="#d97706" stroke-width="1.5" marker-end="url(#lib-arr)"/>
+  <text x="290" y="170" font-size="10" fill="#92400e">loan_002</text>
+
+  <path d="M 220 195 Q 330 240 437 230" fill="none" stroke="#d97706" stroke-width="1.5" marker-end="url(#lib-arr)"/>
+  <text x="290" y="215" font-size="10" fill="#92400e">loan_003</text>
+
+  <!-- Legend -->
+  <g transform="translate(20, 275)">
+    <rect width="14" height="14" rx="3" fill="#d1fae5" stroke="#059669"/>
+    <text x="22" y="11" font-size="11" fill="#6b7280">available / can act</text>
+    <rect x="180" width="14" height="14" rx="3" fill="#fef3c7" stroke="#d97706"/>
+    <text x="202" y="11" font-size="11" fill="#6b7280">at limit / in use</text>
+    <line x1="370" y1="7" x2="395" y2="7" stroke="#d97706" stroke-width="1.5" marker-end="url(#lib-arr)"/>
+    <text x="403" y="11" font-size="11" fill="#6b7280">active loan</text>
+  </g>
+</svg>
+
+Read off the three tasks directly from the picture:
+
+- **Alice → Hamlet**: green source, available slot on Hamlet. Borrow approved.
+- **Bob → Hamlet**: amber source, capped. Refused before we even look at the book.
+- **Alice → Ulysses**: green source — but Ulysses has no available copies. Refused on the book side.
+
+The whole point of the verifier is to mechanize that visual reasoning.
+
 ---
 
 ## 7. Layer F — Tasks
@@ -270,8 +383,76 @@ This is what "mechanically proven" means in practice. Clingo derived
 `available_copies(hamlet, 1)` by subtracting. It composed both to
 derive `can_borrow(alice, hamlet)`. The chain is visible.
 
-For LIB-T-002 and LIB-T-003 the chain stops earlier and no model
-exists, so the verifier reports `policy_refused`.
+### The derivation chain, drawn
+
+<svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg"
+     style="font-family:-apple-system,BlinkMacSystemFont,Inter,Segoe UI,sans-serif; max-width:100%; height:auto; display:block; margin:1.5rem auto;">
+  <defs>
+    <marker id="deriv-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1d4ed8"/>
+    </marker>
+    <marker id="deriv-arr-dim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9ca3af"/>
+    </marker>
+  </defs>
+
+  <!-- Section labels -->
+  <text x="22" y="14" font-size="11" font-weight="700" fill="#6b7280" letter-spacing="0.08em">CONCLUSION</text>
+  <text x="22" y="124" font-size="11" font-weight="700" fill="#6b7280" letter-spacing="0.08em">DERIVED PREDICATES</text>
+  <text x="22" y="254" font-size="11" font-weight="700" fill="#6b7280" letter-spacing="0.08em">FROM D₀ FACTS + COUNTING</text>
+
+  <!-- Top: the derived conclusion -->
+  <rect x="220" y="25" width="280" height="60" rx="8" fill="#1d4ed8" stroke="#1d4ed8" stroke-width="2"/>
+  <text x="360" y="49" text-anchor="middle" font-size="15" font-weight="700" fill="white">can_borrow(alice, hamlet)</text>
+  <text x="360" y="68" text-anchor="middle" font-size="11" fill="#dbeafe">✓ Clingo proves both bodies hold</text>
+
+  <!-- Mid layer: the two conditions -->
+  <rect x="40" y="135" width="280" height="70" rx="6" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
+  <text x="180" y="160" text-anchor="middle" font-size="13" font-weight="700" fill="#1a1a1a">active_loan_count(alice, N)</text>
+  <text x="180" y="180" text-anchor="middle" font-size="12" fill="#1e3a8a">N = 0</text>
+  <text x="180" y="196" text-anchor="middle" font-size="11" fill="#059669" font-weight="600">0 &lt; 3 ✓</text>
+
+  <rect x="400" y="135" width="280" height="70" rx="6" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
+  <text x="540" y="160" text-anchor="middle" font-size="13" font-weight="700" fill="#1a1a1a">has_available_copy(hamlet)</text>
+  <text x="540" y="180" text-anchor="middle" font-size="12" fill="#1e3a8a">available_copies(hamlet, 1)</text>
+  <text x="540" y="196" text-anchor="middle" font-size="11" fill="#059669" font-weight="600">1 ≥ 1 ✓</text>
+
+  <!-- Arrows from mid to top -->
+  <line x1="220" y1="135" x2="280" y2="88" stroke="#1d4ed8" stroke-width="1.5" marker-end="url(#deriv-arr)"/>
+  <line x1="500" y1="135" x2="440" y2="88" stroke="#1d4ed8" stroke-width="1.5" marker-end="url(#deriv-arr)"/>
+
+  <!-- Bottom layer: the facts -->
+  <rect x="20" y="265" width="200" height="68" rx="6" fill="#fafafa" stroke="#6b7280" stroke-width="1"/>
+  <text x="120" y="284" text-anchor="middle" font-size="11" font-weight="600" fill="#4b5563">count loans where</text>
+  <text x="120" y="300" text-anchor="middle" font-size="11" fill="#4b5563">borrower = alice ∧</text>
+  <text x="120" y="314" text-anchor="middle" font-size="11" fill="#4b5563">status = active</text>
+  <text x="120" y="328" text-anchor="middle" font-size="12" font-weight="700" fill="#059669">→ 0</text>
+
+  <rect x="240" y="265" width="220" height="68" rx="6" fill="#fafafa" stroke="#6b7280" stroke-width="1"/>
+  <text x="350" y="284" text-anchor="middle" font-size="11" font-weight="600" fill="#4b5563">total_copies(hamlet) = 2</text>
+  <text x="350" y="300" text-anchor="middle" font-size="11" fill="#4b5563">active loans on hamlet = 1</text>
+  <text x="350" y="328" text-anchor="middle" font-size="12" font-weight="700" fill="#059669">→ 2 − 1 = 1</text>
+
+  <rect x="480" y="265" width="220" height="68" rx="6" fill="#fafafa" stroke="#6b7280" stroke-width="1"/>
+  <text x="590" y="284" text-anchor="middle" font-size="11" font-weight="600" fill="#4b5563">has_available_copy(K) :-</text>
+  <text x="590" y="300" text-anchor="middle" font-size="11" fill="#4b5563">  available_copies(K, N),</text>
+  <text x="590" y="314" text-anchor="middle" font-size="11" fill="#4b5563">  N ≥ 1.</text>
+
+  <!-- Arrows from facts to mid (dashed) -->
+  <line x1="140" y1="265" x2="170" y2="208" stroke="#9ca3af" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#deriv-arr-dim)"/>
+  <line x1="350" y1="265" x2="490" y2="208" stroke="#9ca3af" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#deriv-arr-dim)"/>
+  <line x1="590" y1="265" x2="560" y2="208" stroke="#9ca3af" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#deriv-arr-dim)"/>
+</svg>
+
+Read it bottom-up: from the D₀ facts (gray boxes), counting and
+arithmetic produce intermediate derived predicates (blue boxes), and
+the top `can_borrow` derivation requires both of them to hold. If
+either lower-tier check fails — Alice at the cap, Hamlet at zero
+copies — the chain doesn't reach the top, no model exists, and the
+verifier reports `policy_refused`. That's all that "0 models" means.
+
+For LIB-T-002 and LIB-T-003 the chain stops at the mid tier and no
+model exists, so the verifier reports `policy_refused`.
 
 ---
 
