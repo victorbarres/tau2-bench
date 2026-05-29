@@ -1,0 +1,14 @@
+[project]
+name = "logic-first-design"
+version = "0.1.0"
+description = "Logic-first methodology for designing benchmark domains. Includes a worked example (retail returns) and verification tooling."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "clingo>=5.6",
+]
+
+[tool.uv]
+# logic-first-design is a collection of scripts + data, not an installable
+# Python package. We use uv for dependency management only.
+package = false

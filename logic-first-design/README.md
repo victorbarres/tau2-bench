@@ -85,6 +85,15 @@ ineligible value in `tasks.json` — and re-run.
 - A v0 verifier that mechanizes all Layer B and Layer C and the
   runtime-checkable subset of Layer D, and passes 6/6 tasks while
   catching 5/5 deliberate bug injections.
+- **An LP-based uniqueness verifier** (`tools/clingo_verify.py`) that
+  proves task F-001's uniqueness via Clingo. Extracts Layer B rules
+  from rules.md (so the markdown stays the single source of truth),
+  encodes D₀ as ASP facts, and reports `unique` / `ambiguous(N)` /
+  `infeasible` plus the pruning ratio (free-policy models ÷
+  constrained models) as a first-cut complexity metric. Requires
+  `uv sync` to install the `clingo` Python bindings; F-001 only for
+  now, generalization to F-002–F-006 is the next step. See
+  `pyproject.toml` for the dependency.
 
 **Not yet working:**
 - **Solve** operation (derive D* from `(D₀, OperationalSpec)` alone,
