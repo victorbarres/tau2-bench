@@ -384,3 +384,16 @@ catching at least one mismatch we would have missed by eye.
   known v0 gap with explicit proxies (D-CONF-5 and D-CONF-7), rather than
   a deferred ambition. The principle stays; the v0 limitation is now in
   the open rather than implicit.
+- **2026-05-26 (later)** — **first verifier landed**: pure-Python
+  implementation at `scripts/verify_retail_returns.py`. Mechanizes all
+  25 Layer B integrity constraints and all 9 Layer C actions; checks
+  the runtime-checkable Layer D rules D-CONF-5 and D-CONF-7. For each
+  task: applies the gold action witness to D₀, validates preconditions
+  at each step, runs Layer B invariants on D*, compares D* to D₀ for
+  task-class consistency, and prints the diff. Result on the 6 v0
+  tasks: 6/6 pass. 5 deliberate-bug injections confirmed the verifier
+  catches ineligibility violations, class mismatches, out-of-window
+  approvals, D₀ corruption, and missing references. Pure-Python skips
+  Clingo for v0; ASP integration is deferred until generation /
+  uniqueness work needs it. Operation §5 status: **Verify** working
+  (with the caveats above), **Solve** and **Generate** still TODO.
