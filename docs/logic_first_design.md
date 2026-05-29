@@ -362,7 +362,7 @@ layer:
 | B — World rules | [`rules.md`](../data/tau2/domains/retail_returns/rules.md) | drafted |
 | C — Actions | [`actions.md`](../data/tau2/domains/retail_returns/actions.md) | drafted |
 | D — Agent contract | [`agent_contract.md`](../data/tau2/domains/retail_returns/agent_contract.md) | drafted |
-| E — `D₀` | `db.json` | TODO |
+| E — `D₀` | [`db.json`](../data/tau2/domains/retail_returns/db.json) + [`db_design.md`](../data/tau2/domains/retail_returns/db_design.md) | drafted |
 | F — Tasks | `tasks.json` | TODO |
 
 The methodology's success criterion is: by the time all six layers are
