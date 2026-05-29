@@ -105,6 +105,13 @@ ineligible value in `tasks.json` — and re-run.
   - **Metrics**: pruning ratio + constraint coverage per task (filtered
     by target entities for task-specific complexity).
 
+  - **JSON-only task authoring.** Each task's
+    `operational_spec.intent` field is the canonical source. The
+    verifier consumes it directly — no per-task Python encoder.
+    Adding a new task is a JSON edit; Verify and Solve both work
+    immediately. See `domains/retail_returns/tasks_design.md` §1.1
+    for the intent schema.
+
   Extracts Layer B rules from rules.md so the markdown stays the single
   source of truth; reuses the pure-Python action simulator from
   `verify_retail_returns.py` for the deterministic post-state computation.

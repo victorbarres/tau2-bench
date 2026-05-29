@@ -314,7 +314,7 @@ def constraint_coverage(model: list[str], target_entities: set[str] | None = Non
     return counts
 
 
-def task_target_entities(encoding: TaskEncoding) -> set[str]:
+def task_target_entities(encoding: TaskEncoding, db: dict | None = None) -> set[str]:
     """
     Identify the ASP entities specific to this task — the target Return, its
     items, and the Order it acts on. Used to filter coverage to task-relevant
@@ -327,9 +327,17 @@ def task_target_entities(encoding: TaskEncoding) -> set[str]:
     # Pull the Order id from return_of_order(...) atoms.
     for m in re.finditer(r"return_of_order\(\w+,\s*(\w+)\)", encoding.hypothetical_facts):
         targets.add(m.group(1))
-    # F-001 case: ret_004 is in D₀ not the encoding. Add it manually if present.
-    if "target_return(ret_004)" in encoding.action_rules:
-        targets.update({"ret_004", "ri_004_01", "ord_001", "oi_001_01"})
+    # For approve_existing: the target Return is pre-existing in D₀. Look up
+    # its items + order from db.
+    if encoding.target_return_id and db is not None:
+        rid = encoding.target_return_id
+        ret = db["returns"].get(rid)
+        if ret:
+            targets.add(rid)
+            targets.add(ret["order_id"])
+            for ri in ret["items"]:
+                targets.add(ri["return_item_id"])
+                targets.add(ri["order_item_id"])
     return targets
 
 
@@ -340,22 +348,21 @@ def task_target_entities(encoding: TaskEncoding) -> set[str]:
 
 @dataclass
 class TaskEncoding:
-    """ASP encoding of a single task for uniqueness verification + Solve."""
+    """ASP encoding of a single task for uniqueness verification + Solve.
+
+    Constructed by `encode_task()` from a task's `operational_spec.intent`
+    field. Per-task hardcoded encoders no longer exist — the verifier
+    consumes tasks.json directly.
+    """
     task_id: str
     task_class: str             # 'mutating' | 'policy_noop' | 'intent_noop'
     family: str                 # 'approve_existing' | 'initiate_approve' | 'refuse' | 'noop'
     hypothetical_facts: str
     action_rules: str
     c_hard_constraint: str
-    expected_free_count: int    # without C_hard
-    expected_constrained_count: int  # with C_hard
     notes: str = ""
     # For Solve: which action to fire once Clingo picks the refund_method.
-    # approve_existing: pin the existing Return id.
     target_return_id: str | None = None
-    # initiate_approve: arguments for the initiate_return action; the
-    # refund_method for the subsequent approve_return is filled in from
-    # the Clingo answer set.
     initiate_args: dict | None = None
 
 
@@ -367,170 +374,94 @@ APPROVE_ACTION_RULES = """
 """
 
 
-def encode_f001() -> TaskEncoding:
-    """F-001: approve the pre-existing pending return ret_004."""
-    return TaskEncoding(
-        task_id="F-001",
-        task_class="mutating",
-        family="approve_existing",
-        hypothetical_facts="",  # ret_004 already in D₀
-        action_rules="target_return(ret_004).\n" + APPROVE_ACTION_RULES,
-        c_hard_constraint=":- target_return(R), not picked_refund_method(R, original_payment).",
-        expected_free_count=2,       # original_payment + store_credit
-        expected_constrained_count=1,
-        notes="opened_unused + standard + customer-choice → restocking fee → $42.50",
-        target_return_id="ret_004",
-    )
+def _encode_return_item(ri_id: str, ret_id: str, item: dict) -> list[str]:
+    """Emit ASP facts for one hypothetical ReturnItem."""
+    return [
+        f"return_item({ri_id}).",
+        f"return_item_of({ri_id}, {ret_id}).",
+        f"return_item_references({ri_id}, {item['order_item_id']}).",
+        f"return_item_quantity({ri_id}, {item['quantity']}).",
+        f"return_item_condition({ri_id}, {item['declared_condition']}).",
+        f"return_item_reason({ri_id}, {item['declared_reason']}).",
+        f"valid_return_quantity({ri_id}).",
+    ]
 
 
-def encode_f002() -> TaskEncoding:
-    """F-002: initiate + approve a gift return on ord_005 (Eva returning Bob's cookbook)."""
-    hypothetical = """
-return(rnew).
-return_of_order(rnew, ord_005).
-return_initiator(rnew, cust_005).
-return_status(rnew, pending).
-return_item(rinew1).
-return_item_of(rinew1, rnew).
-return_item_references(rinew1, oi_005_01).
-return_item_quantity(rinew1, 1).
-return_item_condition(rinew1, new_unopened).
-return_item_reason(rinew1, change_of_mind).
-valid_return_quantity(rinew1).
-"""
-    return TaskEncoding(
-        task_id="F-002",
-        task_class="mutating",
-        family="initiate_approve",
-        hypothetical_facts=hypothetical,
-        action_rules="target_return(rnew).\n" + APPROVE_ACTION_RULES,
-        c_hard_constraint=":- target_return(R), not picked_refund_method(R, store_credit).",
-        expected_free_count=1,       # gift forces store_credit; only 1 option
-        expected_constrained_count=1,
-        notes="gift order → store_credit-only; new_unopened → no restocking fee → $70.00",
-        initiate_args={
-            "order_id": "ord_005",
-            "customer_id": "cust_005",
-            "items": [{
-                "order_item_id": "oi_005_01",
-                "quantity": 1,
-                "declared_condition": "new_unopened",
-                "declared_reason": "change_of_mind",
-            }],
-        },
-    )
+def _refund_method_constraint(refund_method: str | None) -> str:
+    """The C_hard integrity constraint pinning the picked refund_method."""
+    if refund_method is None:
+        return ""
+    return f":- target_return(R), not picked_refund_method(R, {refund_method})."
 
 
-def encode_f003() -> TaskEncoding:
-    """F-003: refuse return on ord_007 (one day outside the 30-day window)."""
-    hypothetical = """
-return(rnew).
-return_of_order(rnew, ord_007).
-return_initiator(rnew, cust_003).
-return_status(rnew, pending).
-return_item(rinew1).
-return_item_of(rinew1, rnew).
-return_item_references(rinew1, oi_007_01).
-return_item_quantity(rinew1, 1).
-return_item_condition(rinew1, opened_unused).
-return_item_reason(rinew1, change_of_mind).
-valid_return_quantity(rinew1).
-"""
-    return TaskEncoding(
-        task_id="F-003",
-        task_class="policy_noop",
-        family="refuse",
-        hypothetical_facts=hypothetical,
-        action_rules="target_return(rnew).\n" + APPROVE_ACTION_RULES,
-        c_hard_constraint="",  # we want to confirm 0 models even without C_hard
-        expected_free_count=0,      # within_window false → return_eligible false
-        expected_constrained_count=0,
-        notes="days_since_fulfillment(ord_007)=31; window=30; should be refused",
-    )
+def encode_task(task: dict) -> TaskEncoding:
+    """
+    Build a TaskEncoding from a task's `operational_spec.intent` field.
 
+    Supported actions:
+      - "none"                 — intent_noop tasks; no LP check.
+      - "approve_existing"     — target a pre-existing pending Return.
+      - "initiate_and_approve" — create a hypothetical Return from items,
+                                  then approve it with refund_method.
 
-def encode_f004() -> TaskEncoding:
-    """F-004: Bob (cust_002) attempts to return Eva's gift (ord_005)."""
-    hypothetical = """
-return(rnew).
-return_of_order(rnew, ord_005).
-return_initiator(rnew, cust_002).
-return_status(rnew, pending).
-return_item(rinew1).
-return_item_of(rinew1, rnew).
-return_item_references(rinew1, oi_005_01).
-return_item_quantity(rinew1, 1).
-return_item_condition(rinew1, new_unopened).
-return_item_reason(rinew1, change_of_mind).
-valid_return_quantity(rinew1).
-"""
-    return TaskEncoding(
-        task_id="F-004",
-        task_class="policy_noop",
-        family="refuse",
-        hypothetical_facts=hypothetical,
-        action_rules="target_return(rnew).\n" + APPROVE_ACTION_RULES,
-        c_hard_constraint="",
-        expected_free_count=0,      # eligible_to_initiate false (Bob is purchaser, Eva is recipient)
-        expected_constrained_count=0,
-        notes="Bob is purchaser of gift ord_005; effective_returner is Eva (cust_005)",
-    )
+    The `family` field is derived from (action, task_class):
+      - action=none → noop
+      - mutating intent → approve_existing | initiate_approve
+      - policy_noop intent → refuse (regardless of action shape)
+    """
+    tid = task["id"]
+    spec = task["operational_spec"]
+    klass = spec["task_class"]
+    intent = spec.get("intent") or {}
+    action = intent.get("action", "none")
 
+    if action == "none":
+        return TaskEncoding(
+            task_id=tid, task_class=klass, family="noop",
+            hypothetical_facts="", action_rules="", c_hard_constraint="",
+        )
 
-def encode_f005() -> TaskEncoding:
-    """F-005: initiate + approve exchange on defective Smartwatch (ord_008)."""
-    hypothetical = """
-return(rnew).
-return_of_order(rnew, ord_008).
-return_initiator(rnew, cust_004).
-return_status(rnew, pending).
-return_item(rinew1).
-return_item_of(rinew1, rnew).
-return_item_references(rinew1, oi_008_02).
-return_item_quantity(rinew1, 1).
-return_item_condition(rinew1, defective).
-return_item_reason(rinew1, defective).
-valid_return_quantity(rinew1).
-"""
-    return TaskEncoding(
-        task_id="F-005",
-        task_class="mutating",
-        family="initiate_approve",
-        hypothetical_facts=hypothetical,
-        action_rules="target_return(rnew).\n" + APPROVE_ACTION_RULES,
-        c_hard_constraint=":- target_return(R), not picked_refund_method(R, exchange).",
-        expected_free_count=3,       # original_payment + store_credit + exchange
-        expected_constrained_count=1,
-        notes="defective + replacement_available + valid card → 3 options; C_hard pins exchange",
-        initiate_args={
-            "order_id": "ord_008",
-            "customer_id": "cust_004",
-            "items": [{
-                "order_item_id": "oi_008_02",
-                "quantity": 1,
-                "declared_condition": "defective",
-                "declared_reason": "defective",
-            }],
-        },
-    )
+    if action == "approve_existing":
+        return_id = intent["return_id"]
+        family = "approve_existing" if klass == "mutating" else "refuse"
+        return TaskEncoding(
+            task_id=tid, task_class=klass, family=family,
+            hypothetical_facts="",
+            action_rules=f"target_return({return_id}).\n" + APPROVE_ACTION_RULES,
+            c_hard_constraint=_refund_method_constraint(intent.get("refund_method")),
+            target_return_id=return_id,
+        )
 
+    if action == "initiate_and_approve":
+        order_id = intent["order_id"]
+        customer_id = intent["customer_id"]
+        items = intent["items"]
 
-def encode_f006() -> TaskEncoding:
-    """F-006: intent_noop — Bob asks about ret_003's status (no mutation requested)."""
-    return TaskEncoding(
-        task_id="F-006",
-        task_class="intent_noop",
-        family="noop",
-        hypothetical_facts="",
-        action_rules="",
-        c_hard_constraint="",
-        expected_free_count=0,
-        expected_constrained_count=0,
-        notes="no mutation requested → no LP check applicable; trivial",
-    )
+        # Build hypothetical Return + ReturnItem facts. The new Return is
+        # called `rnew` and ReturnItems `rinew1`, `rinew2`, ... by convention.
+        hypo_lines = [
+            "return(rnew).",
+            f"return_of_order(rnew, {order_id}).",
+            f"return_initiator(rnew, {customer_id}).",
+            "return_status(rnew, pending).",
+        ]
+        for i, item in enumerate(items, start=1):
+            hypo_lines.extend(_encode_return_item(f"rinew{i}", "rnew", item))
 
+        family = "initiate_approve" if klass == "mutating" else "refuse"
+        return TaskEncoding(
+            task_id=tid, task_class=klass, family=family,
+            hypothetical_facts="\n".join(hypo_lines),
+            action_rules="target_return(rnew).\n" + APPROVE_ACTION_RULES,
+            c_hard_constraint=_refund_method_constraint(intent.get("refund_method")),
+            initiate_args={
+                "order_id": order_id,
+                "customer_id": customer_id,
+                "items": items,
+            },
+        )
 
-ENCODERS = [encode_f001, encode_f002, encode_f003, encode_f004, encode_f005, encode_f006]
+    raise ValueError(f"unknown intent action: {action!r} (task {tid})")
 
 
 # ============================================================================
@@ -543,54 +474,51 @@ class TaskResult:
     task_id: str
     task_class: str
     family: str
-    verdict: str                  # 'unique' | 'policy_refused' | 'trivial_noop' | 'ambiguous' | 'unexpected'
+    verdict: str                  # 'unique' | 'policy_refused' | 'trivial_noop' | 'ambiguous' | 'infeasible'
     free_count: int
     constrained_count: int
     coverage: Counter             # predicate-name → count
     coverage_distinct: int        # number of distinct derived predicates
-    expected_free: int
-    expected_constrained: int
     matches_expected: bool
     notes: str = ""
     sample_model: list[str] = field(default_factory=list)
 
 
-def verify(encoding: TaskEncoding, d0_facts: str, layer_b: str) -> TaskResult:
+def _expected_for(family: str, constrained_count: int) -> bool:
+    """The task_class-derived success criterion."""
+    if family == "noop":
+        return True
+    if family == "refuse":
+        return constrained_count == 0  # policy correctly refuses
+    # approve_existing or initiate_approve — mutating tasks
+    return constrained_count == 1
+
+
+def verify(encoding: TaskEncoding, d0_facts: str, layer_b: str, db: dict | None = None) -> TaskResult:
     """Run free + constrained Clingo passes for a task, then build the result."""
 
-    # Family-specific handling
     if encoding.family == "noop":
         return TaskResult(
-            task_id=encoding.task_id,
-            task_class=encoding.task_class,
-            family=encoding.family,
-            verdict="trivial_noop",
-            free_count=0,
-            constrained_count=0,
-            coverage=Counter(),
-            coverage_distinct=0,
-            expected_free=0,
-            expected_constrained=0,
-            matches_expected=True,
-            notes=encoding.notes,
+            task_id=encoding.task_id, task_class=encoding.task_class, family=encoding.family,
+            verdict="trivial_noop", free_count=0, constrained_count=0,
+            coverage=Counter(), coverage_distinct=0,
+            matches_expected=True, notes=encoding.notes,
         )
 
     base_programs = [d0_facts, layer_b, encoding.hypothetical_facts, encoding.action_rules]
 
-    # Free pass — no C_hard. Cap at a high count so we see all alternatives.
     free_models = solve(base_programs, max_models=10)
-
-    # Constrained pass — with C_hard. We only need to know if it's 0 / 1 / ≥2.
-    constrained_programs = base_programs + [encoding.c_hard_constraint] if encoding.c_hard_constraint else base_programs
+    constrained_programs = (
+        base_programs + [encoding.c_hard_constraint]
+        if encoding.c_hard_constraint else base_programs
+    )
     constrained_models = solve(constrained_programs, max_models=2)
 
     free_count = len(free_models)
     constrained_count = len(constrained_models)
 
-    # Verdict
     if encoding.family == "refuse":
-        # Expect 0 models — that's the policy correctly refusing.
-        verdict = "policy_refused" if (free_count == 0 and constrained_count == 0) else "unexpected"
+        verdict = "policy_refused" if constrained_count == 0 else "unexpected"
     else:
         if constrained_count == 0:
             verdict = "infeasible"
@@ -599,36 +527,22 @@ def verify(encoding: TaskEncoding, d0_facts: str, layer_b: str) -> TaskResult:
         else:
             verdict = f"ambiguous_{constrained_count}plus"
 
-    matches_expected = (
-        free_count == encoding.expected_free_count
-        and constrained_count == encoding.expected_constrained_count
-    )
+    matches_expected = _expected_for(encoding.family, constrained_count)
 
     # Coverage from the constrained model (or the free model if no C_hard).
-    # Filter to atoms touching the task's target entities so the number
-    # actually reflects task-specific complexity, not D₀ size.
     sample = (
         constrained_models[0] if constrained_models
         else free_models[0] if free_models
         else []
     )
-    targets = task_target_entities(encoding)
+    targets = task_target_entities(encoding, db=db)
     coverage = constraint_coverage(sample, target_entities=targets)
 
     return TaskResult(
-        task_id=encoding.task_id,
-        task_class=encoding.task_class,
-        family=encoding.family,
-        verdict=verdict,
-        free_count=free_count,
-        constrained_count=constrained_count,
-        coverage=coverage,
-        coverage_distinct=len(coverage),
-        expected_free=encoding.expected_free_count,
-        expected_constrained=encoding.expected_constrained_count,
-        matches_expected=matches_expected,
-        notes=encoding.notes,
-        sample_model=sample,
+        task_id=encoding.task_id, task_class=encoding.task_class, family=encoding.family,
+        verdict=verdict, free_count=free_count, constrained_count=constrained_count,
+        coverage=coverage, coverage_distinct=len(coverage),
+        matches_expected=matches_expected, notes=encoding.notes, sample_model=sample,
     )
 
 
@@ -775,16 +689,18 @@ def main() -> int:
     db = json.loads(DB_PATH.read_text())
     layer_b = extract_asp_from_rules_md(RULES_PATH)
     d0_facts = encode_db(db, db["constants"]["current_time"])
+    tasks = json.loads(TASKS_PATH.read_text())
+    tasks_by_id = {t["id"]: t for t in tasks}
     print(f"\n[setup] Layer B ASP from rules.md: {len(layer_b)} chars.")
     print(f"[setup] D₀: {len(db['customers'])} customers, "
           f"{len(db['orders'])} orders, {len(db['returns'])} returns "
           f"({len(d0_facts.splitlines())} ASP facts).")
+    print(f"[setup] {len(tasks)} tasks loaded from tasks.json (encoding driven by"
+          f" operational_spec.intent — no hardcoded per-task encoders).")
 
-    results: list[TaskResult] = []
-    for encoder in ENCODERS:
-        encoding = encoder()
-        result = verify(encoding, d0_facts, layer_b)
-        results.append(result)
+    # Each task is encoded directly from its operational_spec.intent field.
+    encodings: list[TaskEncoding] = [encode_task(t) for t in tasks]
+    results: list[TaskResult] = [verify(e, d0_facts, layer_b, db=db) for e in encodings]
 
     # --- Per-task results table ---
     print("\n" + "─" * 78)
@@ -832,13 +748,10 @@ def main() -> int:
     print("\n" + "─" * 78)
     print("Solve operation — derive D* from (D₀, OperationalSpec)")
     print("─" * 78)
-    tasks = json.loads(TASKS_PATH.read_text())
-    tasks_by_id = {t["id"]: t for t in tasks}
 
     solve_results: list[SolveResult] = []
     cross_validations: list[tuple[str, bool, str]] = []
-    for encoder in ENCODERS:
-        encoding = encoder()
+    for encoding in encodings:
         sr = solve_task(encoding, db, layer_b)
         solve_results.append(sr)
 

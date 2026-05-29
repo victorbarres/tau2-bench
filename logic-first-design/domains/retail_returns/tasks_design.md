@@ -45,7 +45,8 @@ that carry the methodology's structured specification.
   },
   "operational_spec": {
     "task_class": "mutating" | "policy_noop" | "intent_noop",
-    "c_hard": [ ... ],              // constraints D* must satisfy
+    "intent": { ... },              // structured (see §1.1) — consumed by verifier
+    "c_hard": [ ... ],              // prose form (documentation; rendered from intent)
     "c_soft": [ ... ],              // conditional preferences
     "c_known": [ ... ],             // facts user volunteers
     "c_unknown": [ ... ]            // facts user must derive
@@ -65,6 +66,59 @@ comes from:
 - `intent_noop` — `D* = D₀`; same as policy_noop but the user didn't ask
   for a mutation, so refusal is trivial; the `communicate_info` check
   confirms the right facts were surfaced.
+
+### 1.1 The `intent` field — canonical operational source
+
+The `intent` field is the **single structured source of truth** for what
+the user wants to do. The prose `c_hard` strings restate the same
+content in human-readable form; they are documentation, not the
+authored spec. The verifier (`tools/clingo_verify.py`) consumes `intent`
+directly to build the ASP encoding, derive D* via the Solve operation,
+and cross-validate against the gold action witness.
+
+Three `action` values are supported in v0:
+
+**`approve_existing`** — approve a pre-existing pending Return.
+```jsonc
+{
+  "action": "approve_existing",
+  "return_id": "ret_004",                // must exist in D₀, status=pending
+  "refund_method": "original_payment"    // pinned choice; omit for refuse tasks
+}
+```
+
+**`initiate_and_approve`** — create a new Return and immediately approve.
+```jsonc
+{
+  "action": "initiate_and_approve",
+  "order_id": "ord_005",
+  "customer_id": "cust_005",             // initiator; must be effective_returner
+  "items": [
+    {
+      "order_item_id": "oi_005_01",
+      "quantity": 1,
+      "declared_condition": "new_unopened",
+      "declared_reason": "change_of_mind"
+    }
+  ],
+  "refund_method": "store_credit"        // pinned choice; omit for refuse tasks
+}
+```
+
+**`none`** — intent_noop tasks (information lookup only; no mutation).
+```jsonc
+{ "action": "none" }
+```
+
+Notes:
+- For `policy_noop` (refuse) tasks, `refund_method` is omitted because the
+  policy refuses before the choice matters. The verifier confirms 0
+  models exist for the requested action.
+- For multi-item returns: list multiple items in the `items` array; the
+  verifier emits one hypothetical `ReturnItem` per entry.
+- Authoring a new task is now **JSON-only** — write the `intent` and the
+  verifier produces the encoding, derives D*, and cross-validates. No
+  new Python required.
 
 ---
 
