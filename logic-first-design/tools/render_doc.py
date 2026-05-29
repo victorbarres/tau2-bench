@@ -399,6 +399,13 @@ PAGE_META = {
                 "(the framework) and <a href=\"findings.html\">findings.html</a> "
                 "(the empirical writeup).",
     },
+    "lit_review": {
+        "title": "Literature Review",
+        "subtitle": "Related work — benchmarks, logic policy, formal methods, test synthesis",
+        "meta": "Background context for <a href=\"methodology.html\">methodology.html</a>. "
+                "Built from 42 papers gathered by parallel research agents; full "
+                "bibliography in <a href=\"references.bib\">references.bib</a>.",
+    },
 }
 
 
