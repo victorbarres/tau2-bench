@@ -60,9 +60,12 @@ def parse_dt(s: str) -> datetime:
 
 
 def days_between(later: str, earlier: str) -> int:
-    """Whole calendar days between two ISO datetimes (later − earlier)."""
-    delta = parse_dt(later) - parse_dt(earlier)
-    return delta.days
+    """
+    Calendar-day difference (later − earlier). Uses date-level truncation
+    so that the policy's "within N days" matches how a human counts days:
+    delivered May 15, returned June 15 ⇒ 31 days regardless of time-of-day.
+    """
+    return (parse_dt(later).date() - parse_dt(earlier).date()).days
 
 
 # ============================================================================

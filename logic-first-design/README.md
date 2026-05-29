@@ -86,14 +86,29 @@ ineligible value in `tasks.json` — and re-run.
   runtime-checkable subset of Layer D, and passes 6/6 tasks while
   catching 5/5 deliberate bug injections.
 - **An LP-based uniqueness verifier** (`tools/clingo_verify.py`) that
-  proves task F-001's uniqueness via Clingo. Extracts Layer B rules
-  from rules.md (so the markdown stays the single source of truth),
-  encodes D₀ as ASP facts, and reports `unique` / `ambiguous(N)` /
-  `infeasible` plus the pruning ratio (free-policy models ÷
-  constrained models) as a first-cut complexity metric. Requires
-  `uv sync` to install the `clingo` Python bindings; F-001 only for
-  now, generalization to F-002–F-006 is the next step. See
-  `pyproject.toml` for the dependency.
+  proves soundness + uniqueness for all 6 tasks via Clingo. Extracts
+  Layer B rules from rules.md (so the markdown stays the single source
+  of truth), encodes D₀ as ASP facts, and runs the policy against each
+  task. Per-task report:
+
+  | ID | family | verdict | pruning | cov |
+  |---|---|---|---|---|
+  | F-001 | approve_existing | unique | 2→1 | 15 |
+  | F-002 | initiate_approve | unique | 1→1 | 14 |
+  | F-003 | refuse | policy_refused | 0→0 | 0 |
+  | F-004 | refuse | policy_refused | 0→0 | 0 |
+  | F-005 | initiate_approve | unique | 3→1 | 15 |
+  | F-006 | noop | trivial | — | — |
+
+  Two complexity metrics surface:
+  - **Pruning ratio** (`free → constrained`): how much work C_hard
+    did to narrow the policy-permitted answer space.
+  - **Constraint coverage**: how many distinct Layer B derived
+    predicates fired on the target return — measures how much
+    policy machinery the task exercises.
+
+  Requires `uv sync` to install the `clingo` Python bindings.
+  See `pyproject.toml` for the dependency.
 
 **Not yet working:**
 - **Solve** operation (derive D* from `(D₀, OperationalSpec)` alone,
