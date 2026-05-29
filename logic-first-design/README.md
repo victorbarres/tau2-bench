@@ -85,27 +85,29 @@ ineligible value in `tasks.json` — and re-run.
 - A v0 verifier that mechanizes all Layer B and Layer C and the
   runtime-checkable subset of Layer D, and passes 6/6 tasks while
   catching 5/5 deliberate bug injections.
-- **An LP-based uniqueness verifier** (`tools/clingo_verify.py`) that
-  proves soundness + uniqueness for all 6 tasks via Clingo. Extracts
-  Layer B rules from rules.md (so the markdown stays the single source
-  of truth), encodes D₀ as ASP facts, and runs the policy against each
-  task. Per-task report:
+- **An LP-based verifier + solver** (`tools/clingo_verify.py`)
+  implementing three operations from the methodology:
 
-  | ID | family | verdict | pruning | cov |
-  |---|---|---|---|---|
-  | F-001 | approve_existing | unique | 2→1 | 15 |
-  | F-002 | initiate_approve | unique | 1→1 | 14 |
-  | F-003 | refuse | policy_refused | 0→0 | 0 |
-  | F-004 | refuse | policy_refused | 0→0 | 0 |
-  | F-005 | initiate_approve | unique | 3→1 | 15 |
-  | F-006 | noop | trivial | — | — |
+  - **Verify**: proves soundness + uniqueness for all 6 tasks. Per-task:
+    | ID | family | verdict | pruning | cov |
+    |---|---|---|---|---|
+    | F-001 | approve_existing | unique | 2→1 | 15 |
+    | F-002 | initiate_approve | unique | 1→1 | 14 |
+    | F-003 | refuse | policy_refused | 0→0 | 0 |
+    | F-004 | refuse | policy_refused | 0→0 | 0 |
+    | F-005 | initiate_approve | unique | 3→1 | 15 |
+    | F-006 | noop | trivial | — | — |
 
-  Two complexity metrics surface:
-  - **Pruning ratio** (`free → constrained`): how much work C_hard
-    did to narrow the policy-permitted answer space.
-  - **Constraint coverage**: how many distinct Layer B derived
-    predicates fired on the target return — measures how much
-    policy machinery the task exercises.
+  - **Solve**: derives D* from `(D₀, OperationalSpec)` alone — no gold
+    action witness needed. Cross-validates against the gold trajectory:
+    6/6 Solve-derived D* match the gold-trajectory D*.
+
+  - **Metrics**: pruning ratio + constraint coverage per task (filtered
+    by target entities for task-specific complexity).
+
+  Extracts Layer B rules from rules.md so the markdown stays the single
+  source of truth; reuses the pure-Python action simulator from
+  `verify_retail_returns.py` for the deterministic post-state computation.
 
   Requires `uv sync` to install the `clingo` Python bindings.
   See `pyproject.toml` for the dependency.

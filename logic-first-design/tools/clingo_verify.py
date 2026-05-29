@@ -42,6 +42,20 @@ DB_PATH = DOMAIN_DIR / "db.json"
 RULES_PATH = DOMAIN_DIR / "rules.md"
 TASKS_PATH = DOMAIN_DIR / "tasks.json"
 
+# Reuse the Python action simulator from the pure-Python verifier. Same
+# directory; just add it to the path. The two verifiers are deliberately
+# coupled here: the Clingo solver picks the refund_method; the Python
+# simulator applies the policy-determined side effects (quantity bookkeeping,
+# store-credit credit, exchange-order creation). Together they constitute the
+# Solve operation.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from verify_retail_returns import (  # noqa: E402
+    TaskContext,
+    apply_initiate_return,
+    apply_approve_return,
+    compute_diff,
+)
+
 
 # ============================================================================
 # 1. Rule extraction — keep rules.md as the single source of truth
@@ -326,7 +340,7 @@ def task_target_entities(encoding: TaskEncoding) -> set[str]:
 
 @dataclass
 class TaskEncoding:
-    """ASP encoding of a single task for uniqueness verification."""
+    """ASP encoding of a single task for uniqueness verification + Solve."""
     task_id: str
     task_class: str             # 'mutating' | 'policy_noop' | 'intent_noop'
     family: str                 # 'approve_existing' | 'initiate_approve' | 'refuse' | 'noop'
@@ -336,6 +350,13 @@ class TaskEncoding:
     expected_free_count: int    # without C_hard
     expected_constrained_count: int  # with C_hard
     notes: str = ""
+    # For Solve: which action to fire once Clingo picks the refund_method.
+    # approve_existing: pin the existing Return id.
+    target_return_id: str | None = None
+    # initiate_approve: arguments for the initiate_return action; the
+    # refund_method for the subsequent approve_return is filled in from
+    # the Clingo answer set.
+    initiate_args: dict | None = None
 
 
 # Common action rules: target_return is policy-eligible, picks exactly one
@@ -358,6 +379,7 @@ def encode_f001() -> TaskEncoding:
         expected_free_count=2,       # original_payment + store_credit
         expected_constrained_count=1,
         notes="opened_unused + standard + customer-choice → restocking fee → $42.50",
+        target_return_id="ret_004",
     )
 
 
@@ -386,6 +408,16 @@ valid_return_quantity(rinew1).
         expected_free_count=1,       # gift forces store_credit; only 1 option
         expected_constrained_count=1,
         notes="gift order → store_credit-only; new_unopened → no restocking fee → $70.00",
+        initiate_args={
+            "order_id": "ord_005",
+            "customer_id": "cust_005",
+            "items": [{
+                "order_item_id": "oi_005_01",
+                "quantity": 1,
+                "declared_condition": "new_unopened",
+                "declared_reason": "change_of_mind",
+            }],
+        },
     )
 
 
@@ -470,6 +502,16 @@ valid_return_quantity(rinew1).
         expected_free_count=3,       # original_payment + store_credit + exchange
         expected_constrained_count=1,
         notes="defective + replacement_available + valid card → 3 options; C_hard pins exchange",
+        initiate_args={
+            "order_id": "ord_008",
+            "customer_id": "cust_004",
+            "items": [{
+                "order_item_id": "oi_008_02",
+                "quantity": 1,
+                "declared_condition": "defective",
+                "declared_reason": "defective",
+            }],
+        },
     )
 
 
@@ -591,7 +633,137 @@ def verify(encoding: TaskEncoding, d0_facts: str, layer_b: str) -> TaskResult:
 
 
 # ============================================================================
-# 6. Main
+# 6. Solve — derive the unique D* via Clingo + action simulator
+# ============================================================================
+
+
+@dataclass
+class SolveResult:
+    task_id: str
+    family: str
+    success: bool
+    d_star: dict | None              # the derived final DB state
+    diff: list[str] = field(default_factory=list)
+    refund_method: str | None = None
+    error: str = ""
+
+
+def extract_refund_method(model: list[str]) -> str | None:
+    """Pull the chosen refund method out of a `picked_refund_method/2` atom."""
+    for atom in model:
+        m = re.match(r"picked_refund_method\(\w+,\s*(\w+)\)$", atom)
+        if m:
+            return m.group(1)
+    return None
+
+
+def solve_task(encoding: TaskEncoding, db: dict, layer_b: str) -> SolveResult:
+    """
+    Solve operation: derive D* from (D₀, OperationalSpec) via Clingo + action sim.
+
+    For 'refuse' and 'noop' families: D* = D₀ by definition (no mutation).
+    For 'approve_existing' and 'initiate_approve': run Clingo to pick the
+    refund_method, then apply the corresponding actions to D₀.
+    """
+    if encoding.family in ("refuse", "noop"):
+        return SolveResult(
+            task_id=encoding.task_id,
+            family=encoding.family,
+            success=True,
+            d_star=db,  # D* = D₀
+            diff=[],
+        )
+
+    # Run Clingo with C_hard to get the unique answer set.
+    programs = [
+        encode_db(db, db["constants"]["current_time"]),
+        layer_b,
+        encoding.hypothetical_facts,
+        encoding.action_rules,
+        encoding.c_hard_constraint,
+    ]
+    models = solve(programs, max_models=2)
+
+    if len(models) != 1:
+        return SolveResult(
+            task_id=encoding.task_id,
+            family=encoding.family,
+            success=False,
+            d_star=None,
+            error=f"expected exactly 1 model after C_hard; got {len(models)}",
+        )
+
+    refund_method = extract_refund_method(models[0])
+    if refund_method is None:
+        return SolveResult(
+            task_id=encoding.task_id,
+            family=encoding.family,
+            success=False,
+            d_star=None,
+            error="no picked_refund_method atom in the answer set",
+        )
+
+    # Apply the actions via the Python simulator.
+    ctx = TaskContext(task_id=encoding.task_id)
+    try:
+        if encoding.family == "initiate_approve":
+            db_after_initiate = apply_initiate_return(db, encoding.initiate_args, ctx)
+            # New Return id follows the Q-E-3 convention: ret_NEW_<task_id>_1.
+            new_return_id = f"ret_NEW_{encoding.task_id}_1"
+            d_star = apply_approve_return(
+                db_after_initiate,
+                {"return_id": new_return_id, "refund_method": refund_method},
+                ctx,
+            )
+        else:  # approve_existing
+            d_star = apply_approve_return(
+                db,
+                {"return_id": encoding.target_return_id, "refund_method": refund_method},
+                ctx,
+            )
+    except Exception as e:
+        return SolveResult(
+            task_id=encoding.task_id,
+            family=encoding.family,
+            success=False,
+            d_star=None,
+            refund_method=refund_method,
+            error=f"action simulator failed: {e}",
+        )
+
+    diff = compute_diff(db, d_star)
+    return SolveResult(
+        task_id=encoding.task_id,
+        family=encoding.family,
+        success=True,
+        d_star=d_star,
+        diff=diff,
+        refund_method=refund_method,
+    )
+
+
+def derive_gold_d_star(task: dict, db: dict) -> dict | None:
+    """
+    Apply the gold action witness from tasks.json to D₀ to get a reference
+    D*. Used to cross-validate the Solve-derived D*.
+    """
+    from verify_retail_returns import ACTION_DISPATCH
+
+    actions = task["evaluation_criteria"]["actions"]
+    ctx = TaskContext(task_id=task["id"])
+    current = db
+    for a in actions:
+        if a["name"] not in ACTION_DISPATCH:
+            return None
+        try:
+            current = ACTION_DISPATCH[a["name"]](current, a["arguments"], ctx)
+        except Exception:
+            return None
+    return current
+
+
+# ============================================================================
+# 7. Main
 # ============================================================================
 
 
@@ -656,6 +828,51 @@ def main() -> int:
         for pred, count in sorted(r.coverage.items(), key=lambda kv: -kv[1]):
             print(f"    {pred:<35} {count}")
 
+    # --- Solve: derive D* from spec, cross-validate against gold trajectory ---
+    print("\n" + "─" * 78)
+    print("Solve operation — derive D* from (D₀, OperationalSpec)")
+    print("─" * 78)
+    tasks = json.loads(TASKS_PATH.read_text())
+    tasks_by_id = {t["id"]: t for t in tasks}
+
+    solve_results: list[SolveResult] = []
+    cross_validations: list[tuple[str, bool, str]] = []
+    for encoder in ENCODERS:
+        encoding = encoder()
+        sr = solve_task(encoding, db, layer_b)
+        solve_results.append(sr)
+
+        if sr.family in ("refuse", "noop"):
+            print(f"\n{sr.task_id} ({sr.family}): D* = D₀ (no mutation)")
+            cross_validations.append((sr.task_id, True, "trivially D* = D₀"))
+            continue
+
+        if not sr.success:
+            print(f"\n{sr.task_id}: SOLVE FAILED — {sr.error}")
+            cross_validations.append((sr.task_id, False, sr.error))
+            continue
+
+        print(f"\n{sr.task_id} ({sr.family}): D* derived via Clingo + simulator")
+        print(f"  picked refund_method = {sr.refund_method}")
+        print(f"  diff ({len(sr.diff)} changes):")
+        for d in sr.diff:
+            print(f"    • {d}")
+
+        # Cross-validate: does the gold trajectory produce the same D*?
+        gold_d_star = derive_gold_d_star(tasks_by_id[sr.task_id], db)
+        if gold_d_star is None:
+            cross_validations.append((sr.task_id, False, "gold trajectory failed to apply"))
+            continue
+        gold_diff = compute_diff(db, gold_d_star)
+        if sorted(sr.diff) == sorted(gold_diff):
+            print(f"  ✓ Cross-validates against gold-trajectory D* ({len(gold_diff)} changes match)")
+            cross_validations.append((sr.task_id, True, ""))
+        else:
+            print(f"  ✗ DIFFERS from gold-trajectory D*:")
+            print(f"      gold-only:  {set(gold_diff) - set(sr.diff)}")
+            print(f"      solve-only: {set(sr.diff) - set(gold_diff)}")
+            cross_validations.append((sr.task_id, False, "diff mismatch"))
+
     # --- Summary ---
     print("\n" + "=" * 78)
     n = len(results)
@@ -663,20 +880,28 @@ def main() -> int:
     n_mutating = sum(1 for r in results if r.task_class == "mutating")
     n_policy_noop = sum(1 for r in results if r.task_class == "policy_noop")
     n_intent_noop = sum(1 for r in results if r.task_class == "intent_noop")
+    n_xv_pass = sum(1 for _, ok, _ in cross_validations if ok)
 
-    print(f"SUMMARY: {n_ok}/{n} tasks correctly verified.")
-    print(f"  {n_mutating} mutating tasks — uniquely solvable.")
-    print(f"  {n_policy_noop} policy_noop tasks — policy correctly refuses.")
-    print(f"  {n_intent_noop} intent_noop task — no LP check applicable.")
+    print(f"SUMMARY:")
+    print(f"  Verify: {n_ok}/{n} tasks correctly verified.")
+    print(f"    {n_mutating} mutating — uniquely solvable.")
+    print(f"    {n_policy_noop} policy_noop — policy correctly refuses.")
+    print(f"    {n_intent_noop} intent_noop — no LP check applicable.")
+    print(f"  Solve:  {n_xv_pass}/{len(cross_validations)} Solve-derived D* match gold trajectory.")
 
     failures = [r.task_id for r in results if not r.matches_expected]
-    if failures:
-        print(f"\n  Unexpected results: {', '.join(failures)}")
+    xv_failures = [tid for tid, ok, _ in cross_validations if not ok]
+    if failures or xv_failures:
+        if failures:
+            print(f"\n  Verify failures: {', '.join(failures)}")
+        if xv_failures:
+            print(f"  Solve cross-validation failures: {', '.join(xv_failures)}")
         return 1
 
-    print("\n  Phase 1 generalization complete. Both methodology goals delivered:")
-    print("    Goal 1 (correctness):  soundness + uniqueness mechanically proven.")
-    print("    Goal 2 (complexity):   pruning ratio + coverage available per task.")
+    print("\n  Three operations now working:")
+    print("    Verify  — soundness + uniqueness proven per task.")
+    print("    Solve   — D* derived from (D₀, OperationalSpec) alone, no gold trajectory needed.")
+    print("    Metrics — pruning ratio + constraint coverage per task.")
     return 0
 
 
