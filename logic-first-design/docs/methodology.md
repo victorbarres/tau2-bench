@@ -397,6 +397,30 @@ without requiring changes to the framework itself — only domain-specific
 encoding adaptations (composite ids, positional passengers,
 `insurance_covers` external predicate).
 
+**Methodology milestone (2026-05-29, later):** first cross-validation
+against upstream tau2-bench tasks. Three upstream cancellation tasks
+(authored by humans against the prose `policy.md` without reference to
+our methodology) verified end-to-end via
+[`tools/cross_validate_airline.py`](../tools/cross_validate_airline.py).
+Schema adapter pulls subset of upstream `db.json`, translates to our
+ontology format, runs our Clingo verifier; verdict compared against the
+upstream task's expected outcome.
+
+Result: **3/3 agreement.**
+
+| Upstream task | User | Reservation | Expected | Got |
+|---|---|---|---|---|
+| Task 0 | Emma Kim (gold) | EHGLP3 (~11d, basic_economy, no insurance) | policy_refused | policy_refused ✓ |
+| Task 1 | Raj Sanchez (silver) | Q69X3R (~29h, economy, no insurance) | policy_refused | policy_refused ✓ |
+| Task 19 | Olivia Gonzalez | Z7GOZK (~43h, basic_economy, **insurance=yes**) | unique (cancel succeeds) | unique ✓ |
+
+Task 19 specifically exercises the **insurance + covered-reason
+branch**: the user's "I feel unwell" prose maps to `intent.cancellation_reason
+= "other"` + `intent.insurance_covers = true`, and `cancellable/2`
+correctly fires via the insurance ground clause. This is the
+methodology's structured-intent + external-predicate pattern paying
+off on a task it didn't design.
+
 The earlier extraction draft lives at
 [`../domains/airline_reference/policy_logic.md`](../domains/airline_reference/policy_logic.md);
 the formal Layer A is the first artifact of the retrofit proper. The
