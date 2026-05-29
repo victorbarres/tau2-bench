@@ -45,11 +45,13 @@ TASKS_PATH = DOMAIN_DIR / "tasks.json"
 
 
 def load_db() -> dict:
+    """Load the baseline DB (D₀) from domains/retail_returns/db.json."""
     with DB_PATH.open() as f:
         return json.load(f)
 
 
 def load_tasks() -> list[dict]:
+    """Load the task list from domains/retail_returns/tasks.json."""
     with TASKS_PATH.open() as f:
         return json.load(f)
 
@@ -74,6 +76,7 @@ def days_between(later: str, earlier: str) -> int:
 
 
 def is_gift_order(db: dict, order_id: str) -> bool:
+    """rules.md §3.1: True iff the order has a recipient distinct from the purchaser."""
     o = db["orders"][order_id]
     r = o.get("recipient_customer_id")
     return r is not None and r != o["purchaser_customer_id"]
@@ -88,6 +91,7 @@ def effective_returner(db: dict, order_id: str) -> str:
 
 
 def eligible_to_initiate(db: dict, customer_id: str, order_id: str) -> bool:
+    """rules.md §3.5: True iff `customer_id` is the order's effective returner."""
     return effective_returner(db, order_id) == customer_id
 
 
@@ -130,6 +134,7 @@ def applicable_window_days(db: dict, declared_reason: str, product_id: str, purc
 
 
 def return_class_returnable(db: dict, product_id: str) -> bool:
+    """rules.md §3.4: True iff the product's return_class allows any returns at all."""
     return db["products"][product_id]["return_class"] in ("standard", "perishable")
 
 
@@ -151,6 +156,7 @@ def within_window_for_item(db: dict, return_item: dict, order_id: str, current_t
 
 
 def within_window(db: dict, return_id: str, current_time: str) -> bool:
+    """rules.md §3.3: True iff every ReturnItem's elapsed time ≤ its applicable window."""
     r = db["returns"][return_id]
     o_id = r["order_id"]
     return all(within_window_for_item(db, ri, o_id, current_time) for ri in r["items"])
@@ -190,10 +196,12 @@ def payment_method_valid(db: dict, payment_method_id: str) -> bool:
 
 
 def all_items_defective(return_items: list[dict]) -> bool:
+    """rules.md §3.9 helper: True iff every ReturnItem's condition is 'defective'."""
     return all(ri["declared_condition"] == "defective" for ri in return_items)
 
 
 def all_replacements_available(db: dict, return_items: list[dict], order_id: str) -> bool:
+    """rules.md §3.9 helper: True iff each ReturnItem's product has replacement_available."""
     for ri in return_items:
         oi = next(it for it in db["orders"][order_id]["items"] if it["order_item_id"] == ri["order_item_id"])
         if not db["products"][oi["product_id"]].get("replacement_available", False):
@@ -225,6 +233,7 @@ def eligible_refund_methods(db: dict, return_id: str) -> set[str]:
 
 
 def all_items_returnable(db: dict, return_items: list[dict], order_id: str) -> bool:
+    """rules.md §4 helper: True iff every ReturnItem's product is returnable."""
     for ri in return_items:
         oi = next(it for it in db["orders"][order_id]["items"] if it["order_item_id"] == ri["order_item_id"])
         if not return_class_returnable(db, oi["product_id"]):
@@ -458,18 +467,22 @@ class TaskContext:
     read_customer_ids: set[str] = field(default_factory=set)
 
     def new_return_id(self) -> str:
+        """Allocate the next `ret_NEW_<task_id>_<k>` id (1-indexed)."""
         self.return_counter += 1
         return f"ret_NEW_{self.task_id}_{self.return_counter}"
 
     def new_return_item_id(self) -> str:
+        """Allocate the next `ri_NEW_<task_id>_<k>` id (1-indexed)."""
         self.return_item_counter += 1
         return f"ri_NEW_{self.task_id}_{self.return_item_counter}"
 
     def new_order_id(self) -> str:
+        """Allocate the next `ord_NEW_<task_id>_<k>` id (1-indexed)."""
         self.order_counter += 1
         return f"ord_NEW_{self.task_id}_{self.order_counter}"
 
     def new_order_item_id(self) -> str:
+        """Allocate the next `oi_NEW_<task_id>_<k>` id (1-indexed)."""
         self.order_item_counter += 1
         return f"oi_NEW_{self.task_id}_{self.order_item_counter}"
 
@@ -479,6 +492,7 @@ class ActionError(Exception):
 
 
 def apply_get_customer_details(db: dict, args: dict, ctx: TaskContext) -> dict:
+    """Read action — actions.md §3.1. No DB change; records the read for D-CONF-7."""
     cid = args["customer_id"]
     if cid not in db["customers"]:
         raise ActionError(f"get_customer_details: {cid} not found")
@@ -487,6 +501,7 @@ def apply_get_customer_details(db: dict, args: dict, ctx: TaskContext) -> dict:
 
 
 def apply_get_order_details(db: dict, args: dict, ctx: TaskContext) -> dict:
+    """Read action — actions.md §3.2. No DB change; records the read for D-CONF-5."""
     oid = args["order_id"]
     if oid not in db["orders"]:
         raise ActionError(f"get_order_details: {oid} not found")
@@ -495,6 +510,7 @@ def apply_get_order_details(db: dict, args: dict, ctx: TaskContext) -> dict:
 
 
 def apply_get_return_details(db: dict, args: dict, ctx: TaskContext) -> dict:
+    """Read action — actions.md §3.3. No DB change."""
     rid = args["return_id"]
     if rid not in db["returns"]:
         raise ActionError(f"get_return_details: {rid} not found")
@@ -502,6 +518,7 @@ def apply_get_return_details(db: dict, args: dict, ctx: TaskContext) -> dict:
 
 
 def apply_get_product_details(db: dict, args: dict, ctx: TaskContext) -> dict:
+    """Read action — actions.md §3.4. No DB change."""
     pid = args["product_id"]
     if pid not in db["products"]:
         raise ActionError(f"get_product_details: {pid} not found")
@@ -509,6 +526,7 @@ def apply_get_product_details(db: dict, args: dict, ctx: TaskContext) -> dict:
 
 
 def apply_search_customer_orders(db: dict, args: dict, ctx: TaskContext) -> dict:
+    """Read action — actions.md §3.5. No DB change; records customer read."""
     cid = args["customer_id"]
     if cid not in db["customers"]:
         raise ActionError(f"search_customer_orders: {cid} not found")
@@ -517,6 +535,13 @@ def apply_search_customer_orders(db: dict, args: dict, ctx: TaskContext) -> dict
 
 
 def apply_initiate_return(db: dict, args: dict, ctx: TaskContext) -> dict:
+    """
+    Mutating action — actions.md §4.1. Creates a new Return in `pending`
+    status from the supplied items. Allocates IDs deterministically via
+    the TaskContext per Q-E-3. Raises ActionError if any precondition
+    fails (order exists, customer is effective_returner, items are valid,
+    no other pending Return on this order).
+    """
     oid = args["order_id"]
     cid = args["customer_id"]
     items = args["items"]
@@ -588,6 +613,18 @@ def apply_initiate_return(db: dict, args: dict, ctx: TaskContext) -> dict:
 
 
 def apply_approve_return(db: dict, args: dict, ctx: TaskContext) -> dict:
+    """
+    Mutating action — actions.md §4.2. Transitions a pending Return to
+    refunded with the supplied refund_method, increments
+    returned_quantity on affected OrderItems, updates order_status, and
+    branches on refund_method:
+      - original_payment: credit gift_card balance (no in-DB change for credit_card)
+      - store_credit:     increment Customer.store_credit_balance_cents
+      - exchange:         create a paired Order with same-SKU replacement
+                          at unit_price_cents=0
+    Raises ActionError if the Return isn't pending, isn't policy-eligible,
+    or refund_method isn't in eligible_refund_methods(Return).
+    """
     rid = args["return_id"]
     refund_method = args["refund_method"]
 
@@ -680,6 +717,10 @@ def apply_approve_return(db: dict, args: dict, ctx: TaskContext) -> dict:
 
 
 def apply_cancel_return(db: dict, args: dict, ctx: TaskContext) -> dict:
+    """
+    Mutating action — actions.md §4.3. Transitions a pending Return to
+    cancelled. No quantity, order-status, or monetary side effects.
+    """
     rid = args["return_id"]
     if rid not in db["returns"]:
         raise ActionError(f"cancel_return: return {rid} not found")
@@ -692,7 +733,7 @@ def apply_cancel_return(db: dict, args: dict, ctx: TaskContext) -> dict:
 
 
 def apply_transfer_to_human_agent(db: dict, args: dict, ctx: TaskContext) -> dict:
-    # No DB effect.
+    """Escalation — actions.md §5.1. No DB effect; ends the agent session."""
     return db
 
 
@@ -841,6 +882,19 @@ def compute_diff(d0: dict, d1: dict) -> list[str]:
 
 @dataclass
 class VerificationResult:
+    """
+    Per-task verification result from the pure-Python verifier.
+
+    Fields:
+      passed             : true iff no errors of any kind
+      invariant_errors   : Layer B integrity constraints violated on D*
+      action_errors      : preconditions failed during gold trajectory replay
+      trajectory_errors  : Layer D runtime rules violated by the trajectory
+                            (D-CONF-5, D-CONF-7 only in v0)
+      class_mismatch     : non-empty if task_class disagrees with the diff
+                            (e.g. mutating task produced empty diff)
+      diff               : the structured D₀ → D* changes
+    """
     task_id: str
     task_class: str
     passed: bool
@@ -852,6 +906,17 @@ class VerificationResult:
 
 
 def verify_task(task: dict, d0: dict) -> VerificationResult:
+    """
+    Apply a task's gold action witness to D₀ and check the result.
+
+    Steps:
+      1. Run trajectory checks (D-CONF-5/7 read-before-mutate rules).
+      2. Replay the gold actions through the Python action simulator,
+         capturing precondition failures.
+      3. Run all 25 Layer B integrity constraints on the resulting D*.
+      4. Compare D* to D₀ and check class consistency
+         (mutating → non-empty diff; *_noop → empty diff).
+    """
     tid = task["id"]
     spec = task["operational_spec"]
     klass = spec["task_class"]
@@ -905,6 +970,11 @@ def verify_task(task: dict, d0: dict) -> VerificationResult:
 
 
 def main() -> int:
+    """
+    CLI entry: check D₀ against all 25 Layer B invariants, then verify
+    each task by replaying its gold trajectory. Print per-task results
+    + a summary; exit non-zero on any failure.
+    """
     print("=" * 78)
     print("Retail Returns Verifier — v0 (Python; Clingo deferred)")
     print("=" * 78)

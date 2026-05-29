@@ -225,6 +225,7 @@ def _days_between(later_iso: str, earlier_iso: str) -> int:
     from datetime import datetime
 
     def parse(s: str):
+        """Parse ISO-8601 (with trailing Z) and truncate to date."""
         return datetime.fromisoformat(s.replace("Z", "+00:00")).date()
 
     return (parse(later_iso) - parse(earlier_iso)).days
@@ -288,6 +289,7 @@ def solve(programs: list[str], max_models: int = 2) -> list[list[str]]:
     models: list[list[str]] = []
 
     def on_model(m: clingo.Model) -> bool:
+        """Collect this answer set's derived-predicate atoms; continue enumerating."""
         atoms = [
             str(s) for s in m.symbols(atoms=True)
             if s.name in DERIVED_PREDICATES
@@ -479,14 +481,28 @@ def encode_task(task: dict) -> TaskEncoding:
 
 @dataclass
 class TaskResult:
+    """
+    Verify result for a single retail_returns task (Phase 1 + 3 metrics).
+
+    Fields:
+      verdict          : 'unique' | 'policy_refused' | 'trivial_noop' |
+                         'ambiguous_<N>plus' | 'infeasible'
+      free_count       : answer-set count without C_hard (the "free policy")
+      constrained_count: answer-set count with C_hard (the actual eval)
+      coverage         : Counter of derived-predicate name → ground atom count,
+                         filtered to atoms touching the task's target entities
+      coverage_distinct: len(coverage) — number of distinct predicates that fired
+      matches_expected : derived from family alone (mutating→1, refuse→0, noop→OK)
+      sample_model     : one of the constrained models, for derivation tracing
+    """
     task_id: str
     task_class: str
     family: str
-    verdict: str                  # 'unique' | 'policy_refused' | 'trivial_noop' | 'ambiguous' | 'infeasible'
+    verdict: str
     free_count: int
     constrained_count: int
-    coverage: Counter             # predicate-name → count
-    coverage_distinct: int        # number of distinct derived predicates
+    coverage: Counter
+    coverage_distinct: int
     matches_expected: bool
     notes: str = ""
     sample_model: list[str] = field(default_factory=list)
@@ -561,10 +577,20 @@ def verify(encoding: TaskEncoding, d0_facts: str, layer_b: str, db: dict | None 
 
 @dataclass
 class SolveResult:
+    """
+    Solve result for a single retail_returns task.
+
+    Fields:
+      success       : did Clingo+simulator produce a clean D*?
+      d_star        : the derived final DB (None if !success or family is noop/refuse)
+      diff          : structured list of changes from D₀ to D*
+      refund_method : the choice Clingo picked (filled in for mutating only)
+      error         : non-empty if success is False
+    """
     task_id: str
     family: str
     success: bool
-    d_star: dict | None              # the derived final DB state
+    d_star: dict | None
     diff: list[str] = field(default_factory=list)
     refund_method: str | None = None
     error: str = ""
@@ -690,6 +716,13 @@ def derive_gold_d_star(task: dict, db: dict) -> dict | None:
 
 
 def main() -> int:
+    """
+    CLI entry: load D₀ + Layer B + tasks for retail_returns, run Verify
+    on each task, then Solve on each task that passes Verify, and
+    cross-check Solve-derived D* against the gold trajectory D*. Print
+    per-task table + complexity ranking + Solve diffs. Returns non-zero
+    on any failure.
+    """
     print("=" * 78)
     print("Clingo uniqueness verifier — Phase 1 (F-001 through F-006)")
     print("=" * 78)

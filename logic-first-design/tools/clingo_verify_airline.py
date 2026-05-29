@@ -176,9 +176,23 @@ def encode_db(db: dict) -> str:
 
 @dataclass
 class TaskEncoding:
+    """
+    ASP encoding of a single airline task for Verify + Solve.
+
+    Fields:
+      task_id              : task id from tasks.json (e.g. "AIRLINE-T-001")
+      task_class           : "mutating" | "policy_noop" | "intent_noop"
+      family               : "cancel" | "noop" — selects encoder/solver path
+      hypothetical_facts   : ASP facts the task supplies (e.g. insurance_covers/1)
+      action_rules         : per-task ASP fragment (target_reservation/1,
+                             cancellation_reason_supplied/2, precondition
+                             constraints, #show directives)
+      target_reservation_id: upstream-original reservation id (for DB lookup)
+      cancellation_reason  : the reason supplied by the intent (for Solve)
+    """
     task_id: str
     task_class: str
-    family: str  # 'cancel' | 'noop'
+    family: str
     hypothetical_facts: str
     action_rules: str
     target_reservation_id: str | None = None
@@ -268,6 +282,7 @@ def solve(programs: list[str], max_models: int = 2) -> list[list[str]]:
     models: list[list[str]] = []
 
     def on_model(m: clingo.Model) -> bool:
+        """Collect this answer set's shown atoms; continue enumerating."""
         atoms = [str(s) for s in m.symbols(shown=True)]
         models.append(sorted(atoms))
         return True
@@ -283,10 +298,23 @@ def solve(programs: list[str], max_models: int = 2) -> list[list[str]]:
 
 @dataclass
 class TaskResult:
+    """
+    Verify result for a single airline task.
+
+    Fields:
+      verdict        : 'unique' (1 model — cancel succeeds) /
+                       'policy_refused' (0 models — policy correctly denies) /
+                       'trivial_noop' (intent_noop, no LP check applicable) /
+                       'unexpected' (verdict ≠ task_class)
+      model_count    : how many Clingo answer sets satisfy the program
+      matches_expected: derived from task_class — mutating wants 1,
+                       policy_noop wants 0, intent_noop wants trivial
+      sample_model   : first model's shown atoms (for derivation tracing)
+    """
     task_id: str
     task_class: str
     family: str
-    verdict: str           # 'unique' | 'policy_refused' | 'trivial_noop' | 'unexpected'
+    verdict: str
     model_count: int
     matches_expected: bool
     sample_model: list[str] = field(default_factory=list)
@@ -352,6 +380,17 @@ def apply_cancel_reservation(db: dict, reservation_id: str, reason: str) -> tupl
 
 @dataclass
 class SolveResult:
+    """
+    Solve result for a single airline task.
+
+    Fields:
+      success: did the action simulator run cleanly?
+      d_star : the synthesized post-state DB (None if !success)
+      diff   : structured list of changes (status flip, reason set,
+               per-payment refund events). Empty for refuse/noop families.
+      error  : non-empty if success is False (precondition failure,
+               unsupported family, action simulator exception)
+    """
     task_id: str
     success: bool
     d_star: dict | None = None
@@ -388,6 +427,14 @@ def solve_task(encoding: TaskEncoding, db: dict) -> SolveResult:
 
 
 def verify(encoding: TaskEncoding, d0_facts: str, layer_b: str) -> TaskResult:
+    """
+    Run Clingo on (closed-enum facts, D₀ facts, Layer B rules,
+    hypothetical facts, action rules) and report a TaskResult.
+
+    For policy_noop tasks: success means 0 models exist (policy correctly
+    refused). For mutating: success means exactly 1 model exists. For
+    intent_noop: returns trivial_noop without running Clingo.
+    """
     if encoding.family == "noop":
         return TaskResult(
             task_id=encoding.task_id, task_class=encoding.task_class,
@@ -430,6 +477,11 @@ def verify(encoding: TaskEncoding, d0_facts: str, layer_b: str) -> TaskResult:
 
 
 def main() -> int:
+    """
+    CLI entry: load D₀ + tasks from domains/airline/, run Verify on each,
+    print a results table + per-task derivation traces, return non-zero
+    exit code if any task's verdict diverges from its declared task_class.
+    """
     print("=" * 78)
     print("Airline retrofit verifier — cancellation slice")
     print("=" * 78)

@@ -381,19 +381,36 @@ PAGE_META = {
     "findings": {
         "title": "Findings",
         "subtitle": "What was built, what was proven, what bent",
-        "meta": "Companion to <a href=\"methodology.html\">methodology.html</a> — "
-                "this is the empirical writeup; that one is the framework.",
+        "meta": "Companion to <a href=\"methodology.html\">methodology.html</a> "
+                "(the framework) and <a href=\"next_steps.html\">next_steps.html</a> "
+                "(the roadmap).",
     },
     "methodology": {
         "title": "Methodology",
         "subtitle": "Five principles, six layers, three operations",
-        "meta": "Companion to <a href=\"findings.html\">findings.html</a> — "
-                "this is the framework; that one is the empirical writeup.",
+        "meta": "Companion to <a href=\"findings.html\">findings.html</a> "
+                "(the empirical writeup) and <a href=\"next_steps.html\">next_steps.html</a> "
+                "(the roadmap).",
+    },
+    "next_steps": {
+        "title": "Next Steps",
+        "subtitle": "A tiered roadmap for extending this work",
+        "meta": "Companion to <a href=\"methodology.html\">methodology.html</a> "
+                "(the framework) and <a href=\"findings.html\">findings.html</a> "
+                "(the empirical writeup).",
     },
 }
 
 
 def render(doc_stem: str) -> Path:
+    """
+    Render `docs/<doc_stem>.md` to a single self-contained
+    `docs/<doc_stem>.html`. Returns the path written.
+
+    The H1 from the source markdown is stripped from the body (it's
+    duplicated in the banner instead). PAGE_META supplies the banner
+    title / subtitle / cross-link; falls back to a titled stem otherwise.
+    """
     src = DOCS_DIR / f"{doc_stem}.md"
     if not src.exists():
         raise SystemExit(f"source not found: {src}")
@@ -452,6 +469,7 @@ def render(doc_stem: str) -> Path:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI entry: render one or more document stems to HTML."""
     parser = argparse.ArgumentParser(
         description="Render a docs/ markdown file to a self-contained HTML page.",
     )

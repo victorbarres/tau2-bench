@@ -59,6 +59,17 @@ from clingo_verify_airline import (  # noqa: E402
 
 @dataclass
 class CrossValSpec:
+    """
+    Hand-authored spec for cross-validating one upstream task.
+
+    Fields:
+      upstream_task_id   : task id from upstream tasks.json (e.g. "1", "47")
+      intent             : structured operational intent — what we'd write
+                            in operational_spec.intent if the upstream task
+                            had been authored with the methodology
+      expected_task_class: 'mutating' (cancel succeeds) | 'policy_noop' (refused)
+      notes              : one-line summary of why the task was picked
+    """
     upstream_task_id: str
     intent: dict
     expected_task_class: str
@@ -176,6 +187,16 @@ CROSS_VAL_SPECS = {
 
 
 def adapt_user(upstream_user: dict) -> dict:
+    """
+    Upstream User → our ontology format.
+
+    Schema deltas:
+      address (singular dict) → addresses (list of one dict)
+      name (struct) → name (struct, unchanged)
+      membership → membership_tier
+      payment_methods (dict) → payment_method_ids (list of keys)
+      reservations → reservation_ids
+    """
     return {
         "user_id": upstream_user["user_id"],
         "name": upstream_user["name"],
@@ -205,6 +226,15 @@ _PM_TYPE_MAP = {
 
 
 def adapt_payment_method(upstream_pm: dict, customer_id: str) -> dict:
+    """
+    Upstream PaymentMethod → our ontology format.
+
+    Schema deltas:
+      source → type ('certificate' → 'travel_certificate')
+      brand + last_four → display_label (synthesized "Visa ending in 1234")
+      no upstream 'valid' field on credit_card → default to True
+      amount (dollars, float) → balance_cents (int)
+    """
     out = {
         "payment_method_id": upstream_pm["id"],
         "customer_id": customer_id,
@@ -225,6 +255,22 @@ def adapt_payment_method(upstream_pm: dict, customer_id: str) -> dict:
 
 
 def adapt_reservation(upstream_res: dict) -> dict:
+    """
+    Upstream Reservation → our ontology format.
+
+    Schema deltas:
+      user_id → booking_user_id
+      flight_type → trip_type
+      cabin → cabin_class
+      flights (list of segment dicts) → segments (with unit_price in cents)
+      payment_history (with amounts) → payment_method_ids_used (flat list)
+        — drops the per-payment amount info (single-payment v0; Q-D-A1)
+      insurance ("yes"/"no") → has_travel_insurance (bool)
+      created_at → created_time
+      no upstream status field → "active" (cancelled reservations would be
+        encoded by Layer C's cancel action, not represented in upstream
+        DB at rest)
+    """
     return {
         "reservation_id": upstream_res["reservation_id"],
         "booking_user_id": upstream_res["user_id"],
@@ -254,6 +300,13 @@ def adapt_reservation(upstream_res: dict) -> dict:
 
 def adapt_flight_instance(flight_number: str, origin: str, destination: str,
                           date: str, upstream_date_info: dict) -> dict:
+    """
+    Upstream Flight.dates[date] entry → our FlightInstance format.
+
+    Schema deltas:
+      "on time" → "on_time" (spaces aren't ASP-safe in constants)
+      available_seats (dict by cabin) → cabins
+    """
     # Normalize "on time" → "on_time" for ASP constant safety.
     status = upstream_date_info["status"].replace(" ", "_")
     return {
@@ -336,10 +389,23 @@ def extract_subset(upstream_db: dict, task_intent: dict) -> dict:
 
 @dataclass
 class CrossValResult:
+    """
+    Per-task cross-validation result.
+
+    Fields:
+      expected_outcome : derived from expected_task_class
+                          ('policy_refused' or 'unique')
+      our_verdict      : what our Clingo verifier reports
+      our_model_count  : how many answer sets exist
+      matches          : our_verdict == expected_outcome
+      sample_atoms     : derivation atoms from a model (for tracing)
+      solve_diff       : structured D* diff when Solve is run on a
+                          successful cancellation
+    """
     upstream_task_id: str
     intent: dict
     expected_task_class: str
-    expected_outcome: str         # "policy_refused" or "unique"
+    expected_outcome: str
     our_verdict: str
     our_model_count: int
     matches: bool
@@ -357,6 +423,16 @@ def _expected_outcome(expected_class: str) -> str:
 
 
 def cross_validate(spec: CrossValSpec, upstream_db: dict, layer_b: str) -> CrossValResult:
+    """
+    Run one upstream task through our verifier:
+
+      1. Pull the relevant subset of the upstream DB.
+      2. Adapt the schema to our format.
+      3. Build a task envelope with our structured intent.
+      4. Encode + Verify.
+      5. If Verify reports 'unique', also Solve and capture the diff.
+      6. Compare against the upstream task's expected outcome.
+    """
     subset_db = extract_subset(upstream_db, spec.intent)
     d0_facts = encode_db(subset_db)
 
@@ -404,6 +480,11 @@ def cross_validate(spec: CrossValSpec, upstream_db: dict, layer_b: str) -> Cross
 
 
 def main() -> int:
+    """
+    CLI entry: load upstream JSON, cross-validate each task in
+    CROSS_VAL_SPECS, print a results table + per-task detail with Solve
+    diffs, return non-zero if any task fails to agree with upstream.
+    """
     print("=" * 78)
     print("Cross-validation: airline retrofit vs upstream tau2-bench tasks")
     print("=" * 78)

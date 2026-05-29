@@ -189,9 +189,22 @@ def _empty_db() -> dict:
 
 @dataclass
 class Scenario:
+    """
+    Static metadata about one scenario template.
+
+    Fields:
+      name               : the scenario's key (e.g. 'happy_path_self_return')
+      expected_task_class: what this scenario's default knobs produce
+                           ('mutating' or 'policy_noop')
+      expected_pruning   : (free, constrained) model counts under defaults;
+                           refusal scenarios are (0, 0)
+      knobs              : default knob values (only documentation; the
+                           generator functions apply their own defaults)
+      description        : one-line summary used in CLI help + sweep output
+    """
     name: str
-    expected_task_class: str           # "mutating" | "policy_noop"
-    expected_pruning: tuple[int, int]  # (free, constrained); refuse: (0, 0)
+    expected_task_class: str
+    expected_pruning: tuple[int, int]
     knobs: dict = field(default_factory=dict)
     description: str = ""
 
@@ -473,6 +486,18 @@ def _task_envelope(task_id: str, task_class: str, intent: dict) -> dict:
 
 @dataclass
 class GenerationResult:
+    """
+    Per-variant generation result.
+
+    Fields:
+      db, task         : the synthesized (D₀, task) pair
+      verify_verdict   : Clingo's verdict on the generated task
+      free_count       : models without C_hard (policy-permitted space)
+      constrained_count: models with C_hard (1 = unique, 0 = infeasible)
+      solve_diff       : structured diff if Solve ran on the variant
+      matches_expected : verdict consistent with task.task_class
+      error            : non-empty if matches_expected is False
+    """
     scenario: str
     expected: Scenario
     db: dict
@@ -669,6 +694,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """
+    CLI entry: parse args, run the requested scenario(s) under the swept
+    knob combinations, optionally export to disk, print a results table,
+    return non-zero if any variant fails verification in strict mode.
+    Strict mode = single scenario, no knob overrides.
+    """
     args = _build_parser().parse_args(argv)
     knobs_swept = parse_knob_args(args.knobs)
     combos = sweep(knobs_swept)
