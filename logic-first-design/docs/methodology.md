@@ -371,6 +371,31 @@ task, (b) solve a task from spec alone, (c) generate a new task with proven
 uniqueness, and (d) hand-write the rendered NL with the consistency check
 catching at least one mismatch we would have missed by eye.
 
+### 12.1 Airline retrofit (in progress)
+
+Beyond retail_returns, the methodology is being applied to the existing
+tau2-bench airline domain as the *unforgiving validation* — does it
+generalize to a corpus that wasn't designed with the methodology in
+mind? Status by layer:
+
+| Layer | File | Status |
+|---|---|---|
+| A — Ontology | [`ontology.md`](../domains/airline/ontology.md) | drafted |
+| B — World rules | `rules.md` | TODO |
+| C — Actions | `actions.md` | TODO |
+| D — Agent contract | `agent_contract.md` | TODO |
+| E — `D₀` | `db.json` + `db_design.md` | TODO (adapter to upstream) |
+| F — Tasks | `tasks.json` (50 tasks) | TODO (intent migration) |
+| Verifier | tools | TODO (extend or duplicate) |
+
+The earlier extraction draft lives at
+[`../domains/airline_reference/policy_logic.md`](../domains/airline_reference/policy_logic.md);
+the formal Layer A is the first artifact of the retrofit proper. The
+retrofit is expected to surface methodology gaps that retail_returns
+didn't — multi-segment trips, payment composition cardinalities,
+cabin-uniformity constraints, and compensation rules don't have direct
+analogs in retail_returns and will stress the framework.
+
 ---
 
 ## 13. Status and changelog
