@@ -499,20 +499,29 @@ methodology.md.</p>
 <pre><code class="language-sh">uv run python tools/render_doc.py next_steps
 </code></pre>
 <h3 id="18-solo-mode-direct-task-runner">1.8 Solo-mode / direct-task runner</h3>
-<p><strong>Status</strong>: doesn&rsquo;t exist. The entire eval pipeline assumes the agent
-talks to a user simulator. Conversation is expensive and confounds
-&ldquo;policy reasoning ability&rdquo; with &ldquo;dialogue navigation.&rdquo;</p>
+<p><strong>Status</strong>: prototype done for the library micro-world
+(<a href="../tools/library_solo.py"><code>tools/library_solo.py</code></a>). Oracle mode
+passes 3/3, grader negative-tested on 3 deliberate bug shapes
+(success-claim on refusal task, wrong refusal reason, refuse on happy
+path). LLM mode wired via litellm (<code>uv sync --extra solo</code>) and
+import-verified; live evaluation pending an API-keyed run.</p>
+<p><strong>What&rsquo;s still open</strong>:
+- Generalize to retail_returns (9 actions, multi-payment refunds,
+  c_hard structural checks). Reuses the same <code>Ticket → World → Grader</code>
+  shape; the World class grows but the grader contract is identical:
+  compare final DB to Solve-derived D<em>.
+- Cross-check against tau²-bench&rsquo;s existing <code>LLMSoloAgent</code> so the two
+  agree on which tasks are &ldquo;solo-solvable&rdquo; (the airline cancel slice
+  is the obvious cohort, since cross_validate_airline already proves
+  D</em>-equivalence).
+- Difficulty signal: report per-model pruning ratio + tool-call count
+  alongside pass/fail, so a model that brute-forces (reads everything)
+  vs. one that plans (reads only what <code>can_borrow</code> needs) is
+  distinguishable.</p>
 <p><strong>Why it matters</strong>: lets you measure the <em>policy-reasoning</em> difficulty
 of a task independent of the dialogue. Given a structured intent, the
 agent already has enough information to solve directly. tau²-bench
-already has a &ldquo;solo&rdquo; mode but only for telecom; we&rsquo;d generalize.</p>
-<p><strong>Dependencies</strong>: none.</p>
-<p><strong>Effort</strong>: ~1 session.</p>
-<p><strong>Sketch</strong>:
-- A runner that hands <code>operational_spec.intent</code> to the agent as a
-  structured request (no simulated user).
-- Agent&rsquo;s response is checked via the existing Solve-derived D*.
-- Difficulty becomes measurable on the LP axis alone.</p>
+already has a &ldquo;solo&rdquo; mode but only for telecom; this generalizes.</p>
 <h3 id="19-discriminating-atom-output-when-verify-reports-ambiguous">1.9 Discriminating-atom output when Verify reports ambiguous</h3>
 <p><strong>Status</strong>: Verify reports <code>ambiguous_&lt;N&gt;plus</code> when N&gt;1 models exist
 but doesn&rsquo;t say <em>what</em> discriminates them.</p>

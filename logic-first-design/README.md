@@ -95,6 +95,29 @@ To see that the verifier actually catches bugs (rather than rubber-
 stamping), inject one — e.g., change a task's `refund_method` to an
 ineligible value in `tasks.json` — and re-run.
 
+## Solo-mode runner (library micro-world)
+
+A prototype runner that evaluates an agent on the structured `intent`
+directly — no user simulator. Tests *policy-reasoning* difficulty
+isolated from dialogue navigation.
+
+```sh
+# Deterministic oracle — no LLM, validates the harness end-to-end.
+uv run python tools/library_solo.py --oracle
+
+# Live LLM mode — requires API key for the chosen provider.
+uv sync --extra solo
+OPENAI_API_KEY=... uv run python tools/library_solo.py --model gpt-4o-mini
+ANTHROPIC_API_KEY=... uv run python tools/library_solo.py \
+    --model anthropic/claude-haiku-4-5-20251001
+```
+
+Oracle currently passes 3/3 library tasks. The grader compares the
+agent's final DB state against `Solve(D₀, intent)`; for `policy_noop`
+tasks it also requires a refusal with the exact reason mandated by
+Layer D D-REF-1. Generalization to retail_returns is the next step
+(see [docs/next_steps.md §1.8](docs/next_steps.md)).
+
 ## What's working, what's not
 
 **Working:**

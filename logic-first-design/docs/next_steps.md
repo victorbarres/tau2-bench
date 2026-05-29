@@ -174,24 +174,31 @@ uv run python tools/render_doc.py next_steps
 
 ### 1.8 Solo-mode / direct-task runner
 
-**Status**: doesn't exist. The entire eval pipeline assumes the agent
-talks to a user simulator. Conversation is expensive and confounds
-"policy reasoning ability" with "dialogue navigation."
+**Status**: prototype done for the library micro-world
+([`tools/library_solo.py`](../tools/library_solo.py)). Oracle mode
+passes 3/3, grader negative-tested on 3 deliberate bug shapes
+(success-claim on refusal task, wrong refusal reason, refuse on happy
+path). LLM mode wired via litellm (`uv sync --extra solo`) and
+import-verified; live evaluation pending an API-keyed run.
+
+**What's still open**:
+- Generalize to retail_returns (9 actions, multi-payment refunds,
+  c_hard structural checks). Reuses the same `Ticket → World → Grader`
+  shape; the World class grows but the grader contract is identical:
+  compare final DB to Solve-derived D*.
+- Cross-check against tau²-bench's existing `LLMSoloAgent` so the two
+  agree on which tasks are "solo-solvable" (the airline cancel slice
+  is the obvious cohort, since cross_validate_airline already proves
+  D*-equivalence).
+- Difficulty signal: report per-model pruning ratio + tool-call count
+  alongside pass/fail, so a model that brute-forces (reads everything)
+  vs. one that plans (reads only what `can_borrow` needs) is
+  distinguishable.
 
 **Why it matters**: lets you measure the *policy-reasoning* difficulty
 of a task independent of the dialogue. Given a structured intent, the
 agent already has enough information to solve directly. tau²-bench
-already has a "solo" mode but only for telecom; we'd generalize.
-
-**Dependencies**: none.
-
-**Effort**: ~1 session.
-
-**Sketch**:
-- A runner that hands `operational_spec.intent` to the agent as a
-  structured request (no simulated user).
-- Agent's response is checked via the existing Solve-derived D*.
-- Difficulty becomes measurable on the LP axis alone.
+already has a "solo" mode but only for telecom; this generalizes.
 
 ### 1.9 Discriminating-atom output when Verify reports ambiguous
 

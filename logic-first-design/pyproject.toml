@@ -9,6 +9,11 @@ dependencies = [
     "markdown>=3.10.2",
 ]
 
+[project.optional-dependencies]
+# Solo-mode LLM driver. Only needed when running tools/library_solo.py
+# with --model <name>. The default --oracle mode has no LLM dependency.
+solo = ["litellm>=1.50"]
+
 [tool.uv]
 # logic-first-design is a collection of scripts + data, not an installable
 # Python package. We use uv for dependency management only.
