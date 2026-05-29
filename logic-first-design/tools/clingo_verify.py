@@ -271,8 +271,16 @@ def solve(programs: list[str], max_models: int = 2) -> list[list[str]]:
     """
     Run Clingo on a list of program fragments; return each model as a sorted
     list of atom strings (filtered to derived predicates of interest).
+
+    `--warn=no-atom-undefined` is set because Generate produces minimal D₀s
+    that intentionally omit some entity types (e.g., a self-purchase scenario
+    has no `order_recipient/2` facts). The closed-world semantics still hold
+    — `not P` correctly defaults to true when P never fires — but Clingo's
+    static-analysis warnings about "atom never appears in any rule head"
+    add noise without surfacing bugs. Real correctness issues show up as
+    wrong derivations, not as these warnings.
     """
-    ctl = clingo.Control([f"--models={max_models}"])
+    ctl = clingo.Control([f"--models={max_models}", "--warn=no-atom-undefined"])
     for i, prog in enumerate(programs):
         ctl.add(f"base_{i}", [], prog)
     ctl.ground([(f"base_{i}", []) for i in range(len(programs))])

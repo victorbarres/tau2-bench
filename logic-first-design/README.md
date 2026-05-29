@@ -116,6 +116,29 @@ ineligible value in `tasks.json` — and re-run.
   source of truth; reuses the pure-Python action simulator from
   `verify_retail_returns.py` for the deterministic post-state computation.
 
+- **A scenario-driven generator** (`tools/generate.py`) implementing
+  the methodology's third operation: synthesize `(D₀, task)` pairs
+  from scenario templates. Six templates cover the main task families
+  (happy-path / gift / exchange / window-refusal / non-returnable /
+  wrong-initiator). Each generates a minimal D₀ with just the entities
+  needed to support the intent, then runs the generated task through
+  Verify + Solve to confirm uniqueness. 6/6 generated scenarios match
+  expected pruning ratios:
+
+  | scenario | task_class | expected pruning |
+  |---|---|---|
+  | happy_path_self_return | mutating | 2→1 |
+  | gift_return_forced_store_credit | mutating | 1→1 |
+  | exchange_defective | mutating | 3→1 |
+  | window_refusal | policy_noop | 0→0 |
+  | non_returnable_refusal | policy_noop | 0→0 |
+  | wrong_initiator_refusal | policy_noop | 0→0 |
+
+  Each template accepts knobs (member_tier, days_since_fulfillment,
+  declared_condition, etc.) that produce variants. Generated tasks are
+  emitted as in-memory dicts that can be serialized to tasks.json /
+  db.json for inclusion in a benchmark corpus.
+
   Requires `uv sync` to install the `clingo` Python bindings.
   See `pyproject.toml` for the dependency.
 
