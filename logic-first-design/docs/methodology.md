@@ -381,7 +381,7 @@ mind? Status by layer:
 | Layer | File | Status |
 |---|---|---|
 | A — Ontology | [`ontology.md`](../domains/airline/ontology.md) | drafted |
-| B — World rules | `rules.md` | TODO |
+| B — World rules | [`rules.md`](../domains/airline/rules.md) | drafted (cancellation slice only) |
 | C — Actions | `actions.md` | TODO |
 | D — Agent contract | `agent_contract.md` | TODO |
 | E — `D₀` | `db.json` + `db_design.md` | TODO (adapter to upstream) |
