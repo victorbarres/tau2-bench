@@ -384,9 +384,18 @@ mind? Status by layer:
 | B — World rules | [`rules.md`](../domains/airline/rules.md) | drafted (cancellation slice only) |
 | C — Actions | [`actions.md`](../domains/airline/actions.md) | drafted (cancellation slice only) |
 | D — Agent contract | [`agent_contract.md`](../domains/airline/agent_contract.md) | drafted (cancellation slice only) |
-| E — `D₀` | `db.json` + `db_design.md` | TODO (adapter to upstream) |
-| F — Tasks | `tasks.json` (50 tasks) | TODO (intent migration) |
-| Verifier | tools | TODO (extend or duplicate) |
+| E — `D₀` | [`db.json`](../domains/airline/db.json) | drafted (synthetic, 2 reservations) |
+| F — Tasks | [`tasks.json`](../domains/airline/tasks.json) | drafted (2 tasks: 1 refusal, 1 success) |
+| Verifier | [`tools/clingo_verify_airline.py`](../tools/clingo_verify_airline.py) | working — 2/2 tasks pass |
+
+**Methodology milestone (2026-05-29):** first end-to-end airline retrofit
+verification. Both tasks pass on first run; Clingo executes the airline
+Layer B rules correctly. The 24-hour cancellation window is mechanically
+respected (`AIRLINE-T-001` refused at 28h-old; `AIRLINE-T-002` approved at
+6h-old). The methodology generalizes from retail_returns to airline
+without requiring changes to the framework itself — only domain-specific
+encoding adaptations (composite ids, positional passengers,
+`insurance_covers` external predicate).
 
 The earlier extraction draft lives at
 [`../domains/airline_reference/policy_logic.md`](../domains/airline_reference/policy_logic.md);
