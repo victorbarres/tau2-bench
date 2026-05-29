@@ -433,6 +433,26 @@ def render(doc_stem: str) -> Path:
 
     raw = src.read_text()
 
+    # Pre-process inline <svg>…</svg> blocks so Python markdown leaves them
+    # intact. Indented child lines and HTML comments would otherwise cause
+    # the parser to split the SVG across multiple <p> blocks, which produces
+    # broken markup like `<p><line .../>` outside the parent <svg>. Drop
+    # blank lines, drop comment-only lines, and de-indent. Authors can keep
+    # readable SVG source; this preserves it as one raw HTML block.
+    def _flatten_svg(match: re.Match) -> str:
+        block = match.group(0)
+        cleaned: list[str] = []
+        for line in block.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith("<!--") and stripped.endswith("-->"):
+                continue
+            cleaned.append(stripped if cleaned else line)
+        return "\n".join(cleaned)
+
+    raw = re.sub(r"<svg\b.*?</svg>", _flatten_svg, raw, flags=re.DOTALL)
+
     # Run markdown with the extensions we need.
     md = markdown.Markdown(
         extensions=["tables", "fenced_code", "toc", "attr_list", "smarty"],
