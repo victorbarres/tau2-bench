@@ -382,8 +382,8 @@ mind? Status by layer:
 |---|---|---|
 | A — Ontology | [`ontology.md`](../domains/airline/ontology.md) | drafted |
 | B — World rules | [`rules.md`](../domains/airline/rules.md) | drafted (cancellation slice only) |
-| C — Actions | `actions.md` | TODO |
-| D — Agent contract | `agent_contract.md` | TODO |
+| C — Actions | [`actions.md`](../domains/airline/actions.md) | drafted (cancellation slice only) |
+| D — Agent contract | [`agent_contract.md`](../domains/airline/agent_contract.md) | drafted (cancellation slice only) |
 | E — `D₀` | `db.json` + `db_design.md` | TODO (adapter to upstream) |
 | F — Tasks | `tasks.json` (50 tasks) | TODO (intent migration) |
 | Verifier | tools | TODO (extend or duplicate) |
