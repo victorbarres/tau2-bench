@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Findings</title>
+<meta name="description" content="What was built, what was proven, what bent">
+<style>
+:root {
+  --content-width: 760px;
+  --font-body: 'Charter', 'Iowan Old Style', 'Apple Garamond', Baskerville, Georgia, 'Times New Roman', serif;
+  --font-mono: 'SF Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --color-text: #1a1a1a;
+  --color-muted: #6b7280;
+  --color-accent: #1d4ed8;
+  --color-accent-soft: #dbeafe;
+  --color-border: #e5e7eb;
+  --color-banner: #111827;
+  --color-banner-text: #f9fafb;
+  --color-bg-soft: #fafafa;
+  --color-code-bg: #f3f4f6;
+  --color-code-border: #e5e7eb;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--color-text);
+  background: #fff;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.banner {
+  background: var(--color-banner);
+  color: var(--color-banner-text);
+  padding: 5rem 2rem 4rem;
+  border-bottom: 1px solid #1f2937;
+}
+.banner-inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+}
+.banner .eyebrow {
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #9ca3af;
+  margin: 0 0 1rem;
+}
+.banner h1 {
+  font-family: var(--font-sans);
+  font-size: 2.6rem;
+  margin: 0 0 0.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.banner .subtitle {
+  font-family: var(--font-sans);
+  color: #d1d5db;
+  font-size: 1.15rem;
+  margin: 0;
+  line-height: 1.4;
+}
+.banner .meta {
+  font-family: var(--font-sans);
+  color: #9ca3af;
+  font-size: 0.85rem;
+  margin-top: 2rem;
+}
+.banner .meta a {
+  color: #d1d5db;
+  border-bottom: 1px solid #4b5563;
+}
+
+.container {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+}
+
+/* Table of contents */
+.toc {
+  background: var(--color-bg-soft);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.5rem 2rem 1.5rem 2rem;
+  margin: 0 0 3.5rem;
+  font-family: var(--font-sans);
+}
+.toc-heading {
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  margin: 0 0 1rem;
+}
+.toc ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.toc ul ul {
+  margin-left: 1rem;
+  margin-top: 0.25rem;
+}
+.toc li {
+  margin: 0.35rem 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+.toc a {
+  color: var(--color-text);
+  text-decoration: none;
+  border-bottom: none;
+}
+.toc a:hover {
+  color: var(--color-accent);
+}
+
+/* Headings in body */
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  margin-top: 3rem;
+  margin-bottom: 1rem;
+}
+h1 {
+  font-size: 2rem;
+  border-bottom: 2px solid var(--color-text);
+  padding-bottom: 0.5rem;
+}
+h2 {
+  font-size: 1.55rem;
+  margin-top: 3.5rem;
+}
+h3 {
+  font-size: 1.2rem;
+  color: #374151;
+}
+h4 {
+  font-size: 1.05rem;
+  color: #4b5563;
+}
+
+/* Anchor hover affordance on headings */
+h1, h2, h3, h4 { position: relative; }
+h2:hover::before, h3:hover::before {
+  content: '§';
+  position: absolute;
+  left: -1.4rem;
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
+p { margin: 1rem 0; }
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(29, 78, 216, 0.25);
+  transition: border-color 0.15s ease;
+}
+a:hover {
+  border-bottom-color: var(--color-accent);
+}
+
+strong { font-weight: 700; color: #111827; }
+
+em { font-style: italic; }
+
+/* Code */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--color-code-bg);
+  padding: 0.12em 0.35em;
+  border-radius: 3px;
+  border: 1px solid var(--color-code-border);
+}
+pre {
+  font-family: var(--font-mono);
+  background: var(--color-code-bg);
+  border: 1px solid var(--color-code-border);
+  padding: 1rem 1.25rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.86em;
+  line-height: 1.55;
+  margin: 1.25rem 0;
+}
+pre code {
+  background: none;
+  padding: 0;
+  border: none;
+  font-size: 1em;
+}
+
+/* Blockquotes */
+blockquote {
+  border-left: 4px solid var(--color-accent);
+  background: var(--color-accent-soft);
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem 1rem 1.5rem;
+  color: #1e3a8a;
+  border-radius: 0 4px 4px 0;
+  font-style: normal;
+}
+blockquote p { margin: 0.5rem 0; }
+blockquote p:first-child { margin-top: 0; }
+blockquote p:last-child { margin-bottom: 0; }
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.75rem 0;
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+th, td {
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  background: var(--color-bg-soft);
+  color: #374151;
+  border-bottom: 2px solid #d1d5db;
+}
+tbody tr:hover {
+  background: rgba(29, 78, 216, 0.03);
+}
+
+/* Lists */
+ul, ol {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+}
+li { margin: 0.35rem 0; }
+li > p { margin: 0.4rem 0; }
+li > ul, li > ol { margin: 0.4rem 0; }
+
+/* Horizontal rule */
+hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 3.5rem 0;
+}
+
+/* Footer */
+.footer {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 2rem;
+  border-top: 1px solid var(--color-border);
+  font-family: var(--font-sans);
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* Print styles */
+@media print {
+  body { font-size: 11pt; }
+  .banner {
+    background: #fff;
+    color: var(--color-text);
+    border-bottom: 2px solid var(--color-text);
+    padding: 1.5rem 0 1rem;
+    page-break-after: avoid;
+  }
+  .banner .eyebrow, .banner .subtitle, .banner .meta { color: var(--color-muted); }
+  .banner .meta a { color: var(--color-muted); }
+  .container { padding: 1rem 0; max-width: 100%; }
+  .toc { background: none; border: 1px solid var(--color-border); }
+  a { color: var(--color-text); border-bottom: 1px dotted var(--color-muted); }
+  h1, h2 { page-break-after: avoid; }
+  table, pre, blockquote { page-break-inside: avoid; }
+  .footer { border-top: 1px solid var(--color-border); }
+}
+
+/* Responsive */
+@media (max-width: 700px) {
+  body { font-size: 16px; }
+  .banner { padding: 3rem 1.25rem 2.5rem; }
+  .banner h1 { font-size: 1.9rem; }
+  .banner .subtitle { font-size: 1rem; }
+  .container { padding: 2rem 1.25rem 4rem; }
+  .toc { padding: 1.25rem 1.5rem; }
+  h2 { font-size: 1.35rem; }
+  h3 { font-size: 1.1rem; }
+  table { font-size: 0.85rem; }
+  th, td { padding: 0.5rem 0.6rem; }
+}
+</style>
+</head>
+<body>
+<header class="banner">
+  <div class="banner-inner">
+    <p class="eyebrow">Logic-First Domain Design</p>
+    <h1>Findings</h1>
+    <p class="subtitle">What was built, what was proven, what bent</p>
+    <p class="meta">Companion to <a href="methodology.html">methodology.html</a> — this is the empirical writeup; that one is the framework.</p>
+  </div>
+</header>
+<main class="container">
+<nav class="toc"><p class="toc-heading">Contents</p>
+<ul>
+<li><a href="#1-the-headline-result">1. The headline result</a></li>
+<li><a href="#2-the-problem-this-addresses">2. The problem this addresses</a><ul>
+<li><a href="#21-drift">2.1 Drift</a></li>
+<li><a href="#22-uniqueness-is-emergent-not-designed">2.2 Uniqueness is emergent, not designed</a></li>
+<li><a href="#23-prose-is-treated-as-the-source-of-truth">2.3 Prose is treated as the source of truth</a></li>
+</ul>
+</li>
+<li><a href="#3-the-methodology-in-200-words">3. The methodology in 200 words</a></li>
+<li><a href="#4-what-was-actually-built">4. What was actually built</a><ul>
+<li><a href="#41-the-methodology">4.1 The methodology</a></li>
+<li><a href="#42-domain-1-retail_returns-greenfield-worked-example">4.2 Domain 1: retail_returns (greenfield worked example)</a></li>
+<li><a href="#43-domain-2-airline-cancellation-slice-retrofit">4.3 Domain 2: airline (cancellation slice retrofit)</a></li>
+<li><a href="#44-tooling">4.4 Tooling</a></li>
+</ul>
+</li>
+<li><a href="#5-what-was-proven">5. What was proven</a><ul>
+<li><a href="#51-soundness-uniqueness-mechanically">5.1 Soundness + uniqueness, mechanically</a></li>
+<li><a href="#52-solve-operation-works">5.2 Solve operation works</a></li>
+<li><a href="#53-generate-works">5.3 Generate works</a></li>
+<li><a href="#54-cross-validation-on-real-upstream-data">5.4 Cross-validation on real upstream data</a></li>
+<li><a href="#55-complexity-is-measurable">5.5 Complexity is measurable</a></li>
+<li><a href="#56-bugs-the-methodology-caught-during-development">5.6 Bugs the methodology caught during development</a></li>
+<li><a href="#57-the-methodology-generalizes-empirically">5.7 The methodology generalizes — empirically</a></li>
+</ul>
+</li>
+<li><a href="#6-what-the-methodology-bent-on">6. What the methodology bent on</a><ul>
+<li><a href="#61-external-predicates-for-open-vocabulary-classifications">6.1 External predicates for open-vocabulary classifications</a></li>
+<li><a href="#62-composite-identifiers">6.2 Composite identifiers</a></li>
+<li><a href="#63-positional-sub-entities">6.3 Positional sub-entities</a></li>
+<li><a href="#64-soft-deleted-entities">6.4 Soft-deleted entities</a></li>
+<li><a href="#65-the-single-payment-v0-simplification-q-d-a1">6.5 The single-payment v0 simplification (Q-D-A1)</a></li>
+<li><a href="#66-feebaggage-allocation-in-refund-totals">6.6 Fee/baggage allocation in refund totals</a></li>
+</ul>
+</li>
+<li><a href="#7-cross-validation-a-deeper-look">7. Cross-validation: a deeper look</a></li>
+<li><a href="#8-honest-accounting">8. Honest accounting</a><ul>
+<li><a href="#81-what-works">8.1 What works</a></li>
+<li><a href="#82-whats-known-incomplete">8.2 What&rsquo;s known incomplete</a></li>
+<li><a href="#83-what-didnt-generalize-cleanly">8.3 What didn&rsquo;t generalize cleanly</a></li>
+<li><a href="#84-what-surprised-us-in-retrospect">8.4 What surprised us in retrospect</a></li>
+</ul>
+</li>
+<li><a href="#9-what-this-is-and-isnt">9. What this is and isn&rsquo;t</a><ul>
+<li><a href="#91-what-this-is">9.1 What this is</a></li>
+<li><a href="#92-what-this-isnt">9.2 What this isn&rsquo;t</a></li>
+<li><a href="#93-where-the-methodology-applies">9.3 Where the methodology applies</a></li>
+</ul>
+</li>
+<li><a href="#10-future-work">10. Future work</a><ul>
+<li><a href="#101-methodologically-meaningful">10.1 Methodologically meaningful</a></li>
+<li><a href="#102-domain-coverage">10.2 Domain coverage</a></li>
+<li><a href="#103-productionization">10.3 Productionization</a></li>
+</ul>
+</li>
+<li><a href="#11-reproducibility">11. Reproducibility</a></li>
+<li><a href="#12-project-arc-selected-milestones">12. Project arc (selected milestones)</a></li>
+<li><a href="#13-the-bottom-line">13. The bottom line</a></li>
+</ul>
+</nav>
+
+<p>A writeup of what was built, what was proven, what bent, and what&rsquo;s left.
+Companion to <a href="methodology.md"><code>methodology.md</code></a> (the <em>what</em>); this is the
+<em>what happened when we tried it</em>.</p>
+<hr />
+<h2 id="1-the-headline-result">1. The headline result</h2>
+<blockquote>
+<p>The methodology produces the same outcome as the upstream&rsquo;s expected
+behavior on <strong>8 out of 8 cross-validated airline tasks</strong> — tasks that
+were authored by humans against a prose policy with <strong>zero awareness of
+the methodology, its formalisms, or its tooling</strong>.</p>
+</blockquote>
+<p>That&rsquo;s the strongest empirical claim the project supports. A weaker but
+also true claim:</p>
+<blockquote>
+<p>A greenfield benchmark domain (retail_returns) was designed
+spec-first and is now provably uniquely-solvable on its 6 tasks via
+Verify, mechanically derivable via Solve, and generatable via 6
+scenario templates with controlled-difficulty knob sweeps.</p>
+</blockquote>
+<p>What this lets you do that hand-design didn&rsquo;t:</p>
+<ul>
+<li><strong>Author a task</strong> by writing a structured <code>intent</code> field in JSON; the
+  verifier proves it has exactly one valid solution.</li>
+<li><strong>Catch task ambiguity</strong> the moment you author it — <code>ambiguous(N)</code>,
+  with a diff showing what&rsquo;s under-constrained.</li>
+<li><strong>Catch policy drift</strong> across artifacts — if <code>rules.md</code> and the
+  Python action simulator disagree, the cross-check fails loudly.</li>
+<li><strong>Sample tasks at controlled difficulty</strong> by varying scenario
+  knobs; pruning ratio and constraint coverage are mechanical metrics.</li>
+<li><strong>Retrofit an existing prose policy</strong> to the formalism; the
+  cross-validation step catches policy gaps that the prose alone wouldn&rsquo;t
+  surface.</li>
+</ul>
+<hr />
+<h2 id="2-the-problem-this-addresses">2. The problem this addresses</h2>
+<p>Designing benchmark domains for agents is hand-craft work. A typical
+domain has:</p>
+<ul>
+<li>A <strong>prose policy</strong> (<code>policy.md</code>).</li>
+<li>A <strong>data schema</strong> (often Pydantic).</li>
+<li>A <strong>database</strong> of instances.</li>
+<li>A <strong>task corpus</strong> with user scenarios and gold action sequences.</li>
+<li>A <strong>tool implementation</strong> that enforces some subset of the policy.</li>
+</ul>
+<p>These artifacts encode the domain&rsquo;s meaning across five different
+representations, each with its own author and its own edit cycle. No
+single one is authoritative. To answer &ldquo;is this task uniquely solvable?&rdquo;
+you triangulate. Three pains:</p>
+<h3 id="21-drift">2.1 Drift</h3>
+<p>The artifacts disagree, and the disagreements compound silently.
+Closed enumerations declared in code may not match the policy. The
+schema may not enforce constraints the policy describes. Tool
+implementations silently encode rules the policy mentions only in
+passing. None of this surfaces until a task fails the eval — or worse,
+appears to pass for the wrong reason.</p>
+<p>Concrete example from the airline domain (caught early):
+- <code>policy.md</code> lists 4 <code>flight_status</code> values.
+- <code>data_model.py</code> has 6.
+- Neither mentions which ones are bookable.</p>
+<h3 id="22-uniqueness-is-emergent-not-designed">2.2 Uniqueness is emergent, not designed</h3>
+<p>Tasks have to be uniquely solvable for the benchmark to be meaningful
+(otherwise the agent could produce <em>a</em> valid answer that isn&rsquo;t <em>the</em>
+expected one). The traditional way to achieve this is iteratively:
+author a task, run an oracle agent, see if it produces the gold
+output, tweak the DB or constraints until it does, repeat.</p>
+<p>This is slow and brittle. Nothing prevents two valid answers from
+existing in principle; nothing tells the author <em>which</em> constraint is
+under-specified when it does.</p>
+<h3 id="23-prose-is-treated-as-the-source-of-truth">2.3 Prose is treated as the source of truth</h3>
+<p>Both policies and tasks are authored as natural-language prose, then
+the structured artifacts (schema, gold actions, eval criteria) are
+derived from the prose by hand. This is the wrong dependency
+direction: prose is good for human consumption but bad for precision.</p>
+<p>The methodology inverts this — the formal core is canonical, prose is
+<em>rendered</em> from it. (For v0 we hand-write the prose and consistency-check
+it against the spec; a full renderer is v1 work.)</p>
+<hr />
+<h2 id="3-the-methodology-in-200-words">3. The methodology in 200 words</h2>
+<p>Six layers, three operations:</p>
+<p><strong>Layer A — Ontology.</strong> Sorts, attributes, closed enumerations, named
+derived predicates. No rules.</p>
+<p><strong>Layer B — World rules.</strong> Integrity constraints + derivations,
+encoded as ASP. The &ldquo;Layer B is executable&rdquo; claim is what closes the
+spec/impl gap.</p>
+<p><strong>Layer C — Actions.</strong> Each agent-callable tool is a transition
+predicate with declared signature, preconditions, effects.</p>
+<p><strong>Layer D — Agent contract.</strong> Deontic rules: confirmation, refusal,
+transfer, dialogue conduct. Some <code>[runtime]</code> checkable, some
+<code>[prompt]</code> LLM-graded.</p>
+<p><strong>Layer E — <code>D₀</code>.</strong> A baseline DB satisfying Layers A–C.</p>
+<p><strong>Layer F — Tasks.</strong> Each task is a structured <code>OperationalSpec.intent</code>
+plus a <code>BehavioralSpec</code> (move primitives — <code>lie</code>, <code>insist</code>, <code>withhold</code>,
+etc.).</p>
+<p>Three operations consume these:
+- <strong>Verify</strong> <code>(D₀, OperationalSpec, D*) → unique | ambiguous(N) | infeasible</code>.
+- <strong>Solve</strong> <code>(D₀, OperationalSpec) → D*</code>.
+- <strong>Generate</strong> <code>(scenario template, knobs) → (D₀, task)</code>.</p>
+<p>Plus two complexity metrics per task: <strong>pruning ratio</strong> (how much
+<code>c_hard</code> narrowed the policy-permitted answer space) and <strong>constraint
+coverage</strong> (how many Layer B derived predicates fired on the target
+entity).</p>
+<hr />
+<h2 id="4-what-was-actually-built">4. What was actually built</h2>
+<p>Three artifact buckets: the methodology doc, two domains, and tooling.</p>
+<h3 id="41-the-methodology">4.1 The methodology</h3>
+<p><a href="methodology.md"><code>docs/methodology.md</code></a> — ~380 lines. Principles,
+layer dependency map, task model, three operations, behavioral
+vocabulary, rendering policy, gaps. Drafted at session start and
+revised across the project as the framework actually bent.</p>
+<h3 id="42-domain-1-retail_returns-greenfield-worked-example">4.2 Domain 1: retail_returns (greenfield worked example)</h3>
+<p><a href="../domains/retail_returns/"><code>domains/retail_returns/</code></a> — 8 files,
+~2,600 lines of markdown/JSON/code.</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Artifact</th>
+<th>Substance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td><a href="../domains/retail_returns/ontology.md"><code>ontology.md</code></a></td>
+<td>7 sorts, 8 closed enums, 11 derived predicates declared</td>
+</tr>
+<tr>
+<td>B</td>
+<td><a href="../domains/retail_returns/rules.md"><code>rules.md</code></a></td>
+<td>25 integrity constraints + 11 derivation rules in ASP. Composite <code>return_eligible</code>. Worked micro-example.</td>
+</tr>
+<tr>
+<td>C</td>
+<td><a href="../domains/retail_returns/actions.md"><code>actions.md</code></a></td>
+<td>9 actions (5 read + 4 mutate + 1 escalate). Two-snapshot ASP encoding. One-logical-transition convention.</td>
+</tr>
+<tr>
+<td>D</td>
+<td><a href="../domains/retail_returns/agent_contract.md"><code>agent_contract.md</code></a></td>
+<td>38 deontic rules across auth, disclosure, confirmation, challenge, refusal/transfer, out-of-scope, turn conduct. Each tagged <code>[runtime]</code>/<code>[prompt]</code>.</td>
+</tr>
+<tr>
+<td>E</td>
+<td><a href="../domains/retail_returns/db.json"><code>db.json</code></a> + <a href="../domains/retail_returns/db_design.md"><code>db_design.md</code></a></td>
+<td>6 customers, 12 products, 14 orders (17 items), 4 pre-existing returns, 9 payment methods. Self-verification table against all 25 integrity constraints.</td>
+</tr>
+<tr>
+<td>F</td>
+<td><a href="../domains/retail_returns/tasks.json"><code>tasks.json</code></a> + <a href="../domains/retail_returns/tasks_design.md"><code>tasks_design.md</code></a></td>
+<td>6 tasks covering all task families: canonical approve (F-001), gift return (F-002), window refusal (F-003), wrong-initiator refusal with adversarial lying (F-004), exchange (F-005), intent-only lookup (F-006).</td>
+</tr>
+</tbody>
+</table>
+<p>Each task carries:
+- The structured <code>operational_spec.intent</code> (canonical).
+- Prose <code>c_hard</code> / <code>c_known</code> / <code>c_unknown</code> (documentation, rendered
+  from intent).
+- A <code>behavioral_spec.moves</code> list using the controlled vocabulary.
+- The tau2-bench-compatible NL surface (<code>task_instructions</code>, etc.)
+  hand-written to be consistent with the spec.</p>
+<h3 id="43-domain-2-airline-cancellation-slice-retrofit">4.3 Domain 2: airline (cancellation slice retrofit)</h3>
+<p><a href="../domains/airline/"><code>domains/airline/</code></a> — 6 files, ~1,400 lines.</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Artifact</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td><a href="../domains/airline/ontology.md"><code>ontology.md</code></a></td>
+<td>drafted (full domain)</td>
+</tr>
+<tr>
+<td>B</td>
+<td><a href="../domains/airline/rules.md"><code>rules.md</code></a></td>
+<td>drafted (cancellation slice only) — 14 integrity constraints + 10 derivation rules + 3 composite predicates</td>
+</tr>
+<tr>
+<td>C</td>
+<td><a href="../domains/airline/actions.md"><code>actions.md</code></a></td>
+<td>drafted (cancellation slice only) — 4 actions: <code>get_user_details</code>, <code>get_reservation_details</code>, <code>cancel_reservation</code>, <code>transfer_to_human_agents</code></td>
+</tr>
+<tr>
+<td>D</td>
+<td><a href="../domains/airline/agent_contract.md"><code>agent_contract.md</code></a></td>
+<td>drafted (cancellation slice only) — 27 deontic rules including the airline-specific D-OOS-2 (flown-segment forced transfer)</td>
+</tr>
+<tr>
+<td>E</td>
+<td><a href="../domains/airline/db.json"><code>db.json</code></a></td>
+<td>drafted (synthetic D₀, 2 reservations)</td>
+</tr>
+<tr>
+<td>F</td>
+<td><a href="../domains/airline/tasks.json"><code>tasks.json</code></a></td>
+<td>drafted (2 synthetic tasks: 1 refusal + 1 success)</td>
+</tr>
+</tbody>
+</table>
+<p>Booking, modification, compensation, search, baggage update,
+passenger update, send_certificate slices remain TODO.</p>
+<h3 id="44-tooling">4.4 Tooling</h3>
+<p>5 Python modules, ~2,700 lines total:</p>
+<ul>
+<li>
+<p><a href="../tools/verify_retail_returns.py"><code>tools/verify_retail_returns.py</code></a> (~800 lines)
+  — pure-Python action simulator + Layer B invariant checker for
+  retail_returns. Applies gold trajectories, checks all 25 invariants
+  on D*, reports class consistency.</p>
+</li>
+<li>
+<p><a href="../tools/clingo_verify.py"><code>tools/clingo_verify.py</code></a> (~750 lines) —
+  Clingo-based verifier for retail_returns. Implements Verify (uniqueness
+  via answer-set count), Solve (cross-validates against gold), and two
+  complexity metrics (pruning ratio, target-scoped constraint coverage).
+  Drives off <code>operational_spec.intent</code>; supports JSON-only task
+  authoring.</p>
+</li>
+<li>
+<p><a href="../tools/generate.py"><code>tools/generate.py</code></a> (~750 lines) —
+  scenario-driven task generator with 6 templates, CLI with knob
+  sweeps + JSON export. Generated tasks are provably uniquely solvable
+  by construction (each is run through the verifier).</p>
+</li>
+<li>
+<p><a href="../tools/clingo_verify_airline.py"><code>tools/clingo_verify_airline.py</code></a>
+  (~440 lines) — parallel Clingo verifier for the airline retrofit.
+  Reuses the rule extractor and ASP helpers from clingo_verify;
+  airline-specific DB encoding and per-task encoding. Includes Solve
+  for the cancellation action.</p>
+</li>
+<li>
+<p><a href="../tools/cross_validate_airline.py"><code>tools/cross_validate_airline.py</code></a>
+  (~420 lines) — reads upstream tau2-bench airline JSON directly, runs
+  our verifier on hand-authored intents for 8 upstream tasks,
+  compares verdict against the upstream&rsquo;s expected outcome. Includes
+  schema adapter + subset extractor.</p>
+</li>
+</ul>
+<hr />
+<h2 id="5-what-was-proven">5. What was proven</h2>
+<h3 id="51-soundness-uniqueness-mechanically">5.1 Soundness + uniqueness, mechanically</h3>
+<p>On retail_returns, the Clingo verifier passes 6/6 tasks:</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Family</th>
+<th>Verdict</th>
+<th>Pruning</th>
+<th>Coverage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F-001</td>
+<td>approve_existing</td>
+<td>unique</td>
+<td>2→1</td>
+<td>15</td>
+</tr>
+<tr>
+<td>F-002</td>
+<td>initiate_approve (gift)</td>
+<td>unique</td>
+<td>1→1</td>
+<td>14</td>
+</tr>
+<tr>
+<td>F-003</td>
+<td>refuse (out of window)</td>
+<td>policy_refused</td>
+<td>0→0</td>
+<td>—</td>
+</tr>
+<tr>
+<td>F-004</td>
+<td>refuse (wrong initiator)</td>
+<td>policy_refused</td>
+<td>0→0</td>
+<td>—</td>
+</tr>
+<tr>
+<td>F-005</td>
+<td>initiate_approve (exchange)</td>
+<td>unique</td>
+<td>3→1</td>
+<td>15</td>
+</tr>
+<tr>
+<td>F-006</td>
+<td>intent_noop (lookup)</td>
+<td>trivial</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>&ldquo;Unique&rdquo; means Clingo enumerated all <code>D*</code> satisfying
+<code>Policy ∧ C_hard ∧ D₀</code> and found exactly one. The pruning ratio shows
+how much work <code>c_hard</code> did to narrow the policy-permitted answer space
+(e.g., F-005&rsquo;s defective Smartwatch has 3 eligible refund methods;
+<code>c_hard</code> pinning <code>exchange</code> reduces to 1).</p>
+<p>The pure-Python verifier (applies the gold trajectory and checks
+Layer B invariants) also passes 6/6, providing a redundant
+independent check.</p>
+<h3 id="52-solve-operation-works">5.2 Solve operation works</h3>
+<p>For each successful task, both the gold trajectory and the
+Clingo-derived solution produce the <em>same</em> <code>D*</code> — measured as the
+identical structured diff against <code>D₀</code>. <strong>Three-way agreement</strong> across
+6/6 mutating tasks:</p>
+<pre><code>F-002 Solve diff:
+  customer/cust_005.store_credit_balance_cents: 0 → 7000
+  order/ord_005.status: delivered → fully_returned
+  order_item/oi_005_01.returned_quantity: 0 → 1
+  return/ret_NEW_F-002_1: NEW (status=refunded, method=store_credit, amount=7000)
+</code></pre>
+<p>This is what lets gold-trajectory authoring become <em>optional</em>: the
+Solve operation is the canonical D*-derivation. The gold trajectory
+remains useful as a cross-check but is no longer authoritative.</p>
+<h3 id="53-generate-works">5.3 Generate works</h3>
+<p>Six scenario templates, each with knob parameters. All 6 generated
+scenarios match expected (pruning, verdict):</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Expected</th>
+<th>Got</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>happy_path_self_return</code></td>
+<td>2→1</td>
+<td>2→1</td>
+<td>unique</td>
+</tr>
+<tr>
+<td><code>gift_return_forced_store_credit</code></td>
+<td>1→1</td>
+<td>1→1</td>
+<td>unique</td>
+</tr>
+<tr>
+<td><code>exchange_defective</code></td>
+<td>3→1</td>
+<td>3→1</td>
+<td>unique</td>
+</tr>
+<tr>
+<td><code>window_refusal</code></td>
+<td>0→0</td>
+<td>0→0</td>
+<td>policy_refused</td>
+</tr>
+<tr>
+<td><code>non_returnable_refusal</code></td>
+<td>0→0</td>
+<td>0→0</td>
+<td>policy_refused</td>
+</tr>
+<tr>
+<td><code>wrong_initiator_refusal</code></td>
+<td>0→0</td>
+<td>0→0</td>
+<td>policy_refused</td>
+</tr>
+</tbody>
+</table>
+<p>Knob sweeps mechanically surface policy boundaries:</p>
+<pre><code>member_tier=regular days_since_fulfillment=15  → unique (in window)
+member_tier=regular days_since_fulfillment=60  → infeasible (out of window for regular)
+member_tier=plus    days_since_fulfillment=15  → unique
+member_tier=plus    days_since_fulfillment=60  → unique (plus 90-day extension holds)
+</code></pre>
+<p>That&rsquo;s the regular-vs-plus distinction being mechanically demonstrated
+across knob values — not asserted by a test but falling out of the
+policy applied to the synthesized D₀.</p>
+<p>Generated tasks export to <code>task.json</code> + <code>db.json</code> matching the schema
+of existing artifacts, and they round-trip through the verifier
+cleanly (loaded back from disk, re-verified, produce the same Solve
+diff).</p>
+<h3 id="54-cross-validation-on-real-upstream-data">5.4 Cross-validation on real upstream data</h3>
+<p>8 upstream tau2-bench airline tasks, all 8 cross-validate:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>User</th>
+<th>Reservation</th>
+<th>Branch tested</th>
+<th>Got</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Emma Kim</td>
+<td>EHGLP3 (gold, basic_economy, no ins, ~11d)</td>
+<td>all grounds fail</td>
+<td>policy_refused ✓</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Raj Sanchez</td>
+<td>Q69X3R (silver, economy, no ins, ~29h)</td>
+<td>outside 24h</td>
+<td>policy_refused ✓</td>
+</tr>
+<tr>
+<td>14</td>
+<td>Mohamed Silva</td>
+<td>K1NW8N (basic_economy, no ins, <strong>~22.9h</strong>)</td>
+<td>recent_booking at boundary</td>
+<td>unique ✓</td>
+</tr>
+<tr>
+<td>19</td>
+<td>Olivia Gonzalez</td>
+<td>Z7GOZK (basic_economy, <strong>ins=yes</strong>, ~43h)</td>
+<td>insurance + covered</td>
+<td>unique ✓</td>
+</tr>
+<tr>
+<td>26</td>
+<td>Amelia Sanchez</td>
+<td>3FRNFB (basic_economy, no ins, ~9d)</td>
+<td>all grounds fail</td>
+<td>policy_refused ✓</td>
+</tr>
+<tr>
+<td>29</td>
+<td>Raj Brown</td>
+<td>VA5SGQ (economy, <strong>ins=yes</strong>, ~7d)</td>
+<td>insurance + covered</td>
+<td>unique ✓</td>
+</tr>
+<tr>
+<td>47</td>
+<td>Sophia Silva</td>
+<td>H8Q05L (basic_economy, <strong>ins=yes</strong>, reason=birthday)</td>
+<td>insurance ≠ uncovered reason</td>
+<td>policy_refused ✓</td>
+</tr>
+<tr>
+<td>49</td>
+<td>Anya Garcia</td>
+<td>3RK2T9 (basic_economy, <strong>ins=no</strong>, user lies)</td>
+<td>ground truth vs claim</td>
+<td>policy_refused ✓</td>
+</tr>
+</tbody>
+</table>
+<p>Tasks 47 and 49 are the methodology&rsquo;s payoff cases:</p>
+<ul>
+<li>
+<p><strong>Task 47</strong> — insurance was purchased, but the user&rsquo;s reason (&ldquo;best
+  friend&rsquo;s birthday&rdquo;) isn&rsquo;t health or weather. The <code>intent.insurance_covers</code>
+  field is correctly <code>false</code>. The verifier refuses despite insurance
+  being yes. This tests the <em>precise scope</em> of the insurance branch —
+  insurance alone isn&rsquo;t sufficient; the reason must also be covered.</p>
+</li>
+<li>
+<p><strong>Task 49</strong> — user <em>claims</em> she purchased insurance; the reservation
+  record says no insurance. The verifier consults <code>has_travel_insurance</code>
+  in <code>D₀</code> (ground truth) and refuses regardless of the customer&rsquo;s
+  assertion. This validates the Q1 resolution: <code>insurance_covers/1</code>
+  is a <em>structured input</em>, not a customer-asserted predicate. It
+  doesn&rsquo;t matter what the user says — the policy applies to facts.</p>
+</li>
+</ul>
+<p>These are exactly the kind of subtle cases where a hasty agent might
+just cancel. The methodology mechanically prevents that.</p>
+<h3 id="55-complexity-is-measurable">5.5 Complexity is measurable</h3>
+<p>The pruning ratio gives a principled &ldquo;how constrained is this task&rdquo;
+number. F-005 (exchange with 3 eligible refund methods → 1) is
+mechanically the <em>hardest</em> of the retail_returns mutating tasks; F-002
+(gift forces store_credit before c_hard) is the easiest. That ordering
+wasn&rsquo;t asserted; it falls out of running the policy.</p>
+<p>Constraint coverage adds a second axis — &ldquo;how much policy machinery
+does this task exercise.&rdquo; F-001 fires 15 distinct derived predicates
+on the target Return; F-002 fires 14; F-005 fires 15 but with
+different rules (<code>all_items_defective</code>, <code>requires_inspection</code>,
+<code>all_replacements_available</code> fire only for F-005).</p>
+<p>Together, these two metrics give a difficulty profile per task. For
+a benchmark designer, they let you ask:</p>
+<ul>
+<li>&ldquo;Do my tasks span the full complexity range, or are they clustered?&rdquo;</li>
+<li>&ldquo;Which policy branches does my corpus actually exercise?&rdquo;</li>
+<li>&ldquo;If I add a new task, where in the difficulty distribution does it land?&rdquo;</li>
+</ul>
+<h3 id="56-bugs-the-methodology-caught-during-development">5.6 Bugs the methodology caught during development</h3>
+<p>Each is a methodology validation as much as a bug.</p>
+<p><strong>Bug 1 — Date-arithmetic off-by-one.</strong> Both verifiers initially used
+timestamp subtraction for <code>days_between(later, earlier)</code>, returning 30
+for an order delivered May 15 at 16:00 vs current time June 15 at
+12:00 (less than 24h short of 31 calendar days). Policy semantics count
+calendar days: 31 days, not 30. F-003 (1-day-outside-window boundary
+test) was being <em>silently negated</em> by this bug.</p>
+<p>The pure-Python verifier didn&rsquo;t catch it because F-003 has no
+mutating action — the empty diff matched the empty diff regardless of
+whether eligibility was correctly computed. The Clingo verifier caught
+it because it derives the policy outcome from scratch and reported
+<code>unique</code> (eligible) where F-003 expected <code>infeasible</code>.</p>
+<p><strong>Two independent verifiers disagreeing surfaced a real spec/impl
+drift.</strong> That&rsquo;s exactly what the methodology&rsquo;s redundancy is for. (See
+<a href="../../commits/e5b92ae">commit <code>e5b92ae</code></a>.)</p>
+<p><strong>Bug 2 — <code>effective_returner</code> extracted but not loaded.</strong> The Clingo
+rule extractor in clingo_verify.py initially required a <code>.</code> after the
+section number in markdown headers (e.g., <code>## 2.</code>), but rules.md uses
+<code>### 2.3 Multi-party</code> (no period). This silently dropped §2.3, which
+defines <code>effective_returner/2</code> — the helper that <code>eligible_to_initiate</code>
+depends on. The verifier <em>appeared</em> to work because
+<code>eligible_refund_methods</code> computed correctly on its own, masking the
+fact that <code>return_eligible</code> was actually always false. Caught by
+inspecting the Clingo <code>info: atom does not occur in any rule head</code>
+warning. Fix: regex now permits headers without trailing periods.</p>
+<p><strong>Bug 3 — Reservation IDs starting with digits.</strong> Real upstream
+reservation IDs like <code>3FRNFB</code> and <code>3RK2T9</code> start with digits, which
+ASP rejects as constants (must start with a lowercase letter).
+Surfaced immediately when cross-validation expanded from 3 to 8 tasks.
+Fix: <code>_asp_safe()</code> helper prepends <code>r</code> to ids whose first character
+isn&rsquo;t a letter; the original case is preserved separately for DB
+lookup.</p>
+<p>The bug <em>would not have surfaced</em> in the synthetic D₀ (we chose
+letter-starting IDs by accident). It only surfaced because we ran
+against real upstream data. <strong>Cross-validation against external data
+exposed an assumption we didn&rsquo;t know we were making</strong> — exactly the
+kind of validation that&rsquo;s hard to get any other way.</p>
+<h3 id="57-the-methodology-generalizes-empirically">5.7 The methodology generalizes — empirically</h3>
+<p>Two domains have now been fully (retail_returns) or partially
+(airline cancellation slice) modeled. The methodology framework
+<em>itself</em> did not need modification between the two; only
+domain-specific encoding adaptations (composite ids, positional
+sub-entities, external predicates for open-vocabulary classifications)
+were required.</p>
+<p>What survived the airline encounter unchanged:
+- Layer separation (A–F).
+- The single-source-of-truth principle.
+- The structured-intent canonical / prose-rendered pattern.
+- The Verify / Solve / Generate operation triad.
+- The integrity-constraint-vs-derivation distinction.
+- The closed-enumeration convention (extended with <code>cancelled</code> and
+  <code>landed</code> flight statuses).</p>
+<hr />
+<h2 id="6-what-the-methodology-bent-on">6. What the methodology bent on</h2>
+<p>These are real adaptations the framework absorbed. None invalidates
+the methodology, but each is a place where retail_returns gave a
+cleaner picture than reality permits.</p>
+<h3 id="61-external-predicates-for-open-vocabulary-classifications">6.1 External predicates for open-vocabulary classifications</h3>
+<p>The airline policy says insurance covers &ldquo;health or weather reasons.&rdquo;
+The closed <code>cancellation_reason</code> enum is <code>{change_of_plan,
+airline_cancelled, other}</code>. These vocabularies don&rsquo;t overlap.</p>
+<p>The retail_returns methodology assumed all classifications could be
+modeled as closed enumerations. The airline retrofit forced an
+adaptation: <code>insurance_covers/1</code> is an <strong>external predicate</strong>, supplied
+by the verifier from <code>intent.insurance_covers: bool</code>, <em>not</em> derived
+from a closed enum.</p>
+<p>This pattern likely generalizes to other domains with open-vocabulary
+classifications — medical reason codes, legal cause categories,
+free-text incident descriptions. The &ldquo;closed enumerations are
+authoritative&rdquo; principle yields cleanly: the methodology distinguishes
+<em>derived</em> predicates (must come from rules) from <em>input</em> predicates
+(may come from intent), and external predicates fall into the second
+bucket.</p>
+<p>The cost: tasks must explicitly assert these as structured inputs.
+Tasks 47 and 49 (cross-validated above) test this honestly — Sophia&rsquo;s
+birthday case sets <code>insurance_covers: false</code> despite insurance=yes;
+Anya&rsquo;s lying case also sets it to false. The verifier sees ground
+truth from the intent, not from the customer&rsquo;s claim.</p>
+<h3 id="62-composite-identifiers">6.2 Composite identifiers</h3>
+<p><code>FlightInstance</code> is identified by <code>(flight_number, date)</code>, not a
+single id. retail_returns had no analog — every sort had a single
+identifier. The methodology absorbed this without modification:
+predicates carry the pair (<code>flight_status(FN, D, S)</code>,
+<code>segment_of(R, FN, D)</code>).</p>
+<p>In practice this requires no spec-level change; only the encoder is
+slightly busier. No methodology principle bent.</p>
+<h3 id="63-positional-sub-entities">6.3 Positional sub-entities</h3>
+<p><code>Passenger</code> has no global identifier in the upstream airline schema
+— passengers are positionally nested inside Reservations. The encoder
+synthesizes <code>passenger(R, 1)</code>, <code>passenger(R, 2)</code>, etc., for ASP-grounding
+purposes only. The synthesized indices have no semantic meaning beyond
+&ldquo;one fact per actual passenger.&rdquo;</p>
+<p>The retail_returns assumption — &ldquo;every sort has a stable id&rdquo; — was
+silently wrong. The methodology&rsquo;s &ldquo;single source of truth&rdquo; principle
+still holds; the source is just the positional order in the parent
+entity.</p>
+<h3 id="64-soft-deleted-entities">6.4 Soft-deleted entities</h3>
+<p>Cancelled reservations are not deleted from <code>D₀</code> — they stay with
+<code>status = cancelled</code>. retail_returns avoided this (returns transitioned
+through clean state machines). The methodology absorbs it: post-state
+encoding treats <code>reservation_status(R, _)</code> as a single-valued
+attribute that mutates; refund events are emitted separately.</p>
+<h3 id="65-the-single-payment-v0-simplification-q-d-a1">6.5 The single-payment v0 simplification (Q-D-A1)</h3>
+<p>The upstream airline tasks routinely use multi-payment compositions
+(1 travel certificate + 1 credit card + 2 gift cards). Computing
+per-payment refund allocation requires tracking
+<code>payment_amount(R, PM, A)</code> on the Reservation — the upstream&rsquo;s
+<code>payment_history[]</code> carries this, but we sidestepped it for v0.</p>
+<p>For the 8 cross-validated cancellation tasks, <em>every single one</em> used
+exactly one payment method — so the simplification held. But the
+remaining 3 upstream cancel tasks (7, 39, 42) all involve multi-cancel
+and almost certainly multi-payment compositions. They were
+intentionally excluded from this round of cross-validation.</p>
+<p>This is the most concrete v1 follow-up: extend the encoder to track
+per-payment allocation and the Solve diff to compute per-payment
+refund amounts. It&rsquo;s mechanical work; the methodology already
+specifies the policy (<code>Q-B-A1</code> resolution).</p>
+<h3 id="66-feebaggage-allocation-in-refund-totals">6.6 Fee/baggage allocation in refund totals</h3>
+<p>Our Solve diff for VA5SGQ (cross-validated task 29) shows refund
+total <code>$656.00</code> (sum of segment prices × 1 passenger). The upstream&rsquo;s
+<code>payment_history</code> says <code>$686.00</code> was charged. The $30 difference is
+the single-passenger insurance fee, which our v0 doesn&rsquo;t compute.</p>
+<p>The methodology specifies the policy (insurance is $30/passenger,
+extra baggage is $50 each) but the Solve implementation doesn&rsquo;t roll
+these into the refund total. Adding it is ~20 lines of code; it&rsquo;s
+been left for v1 to keep the cancellation-slice scope tight.</p>
+<hr />
+<h2 id="7-cross-validation-a-deeper-look">7. Cross-validation: a deeper look</h2>
+<p>The 8 cross-validated tasks each test a different branch. The pattern
+each one validates:</p>
+<p><strong>Tasks 0, 1, 26 — &ldquo;All grounds fail&rdquo; refusal.</strong> No recent booking,
+no airline-cancelled segment, no business cabin, no insurance. The
+disjunctive <code>cancellable/2</code> predicate evaluates to false on all four
+ground clauses. Verifier reports 0 models = <code>policy_refused</code>. Tests
+the basic case.</p>
+<p><strong>Task 14 — Boundary case.</strong> Mohamed Silva booked at 16:03 the
+previous day; current_time is 15:00 today. That&rsquo;s 22 hours 57 minutes.
+<code>hours_since_creation = 22</code>, which is <code>≤ 24</code>, so <code>recent_booking</code>
+fires. Cancel succeeds via the recent_booking branch.</p>
+<p>If the hours computation were even slightly off — e.g., if we&rsquo;d used
+ceiling instead of floor — this would fail. The cross-validation
+catches that. The boundary is honored.</p>
+<p><strong>Tasks 19, 29 — Insurance + covered reason.</strong> Olivia &ldquo;feels unwell&rdquo;;
+Raj Brown is instructed by the task to &ldquo;mention your health problem
+at the start of the conversation.&rdquo; Both have insurance. Both succeed.</p>
+<p>The intent encoding <code>cancellation_reason: "other"</code> + <code>insurance_covers:
+true</code> lets Layer B&rsquo;s insurance branch fire. The verifier&rsquo;s success
+matches the upstream&rsquo;s expectation: <code>cancellable(R, other)</code> because
+<code>has_travel_insurance(R) ∧ insurance_covers(other)</code>.</p>
+<p><strong>Task 47 — Insurance but uncovered reason.</strong> This is the
+methodology&rsquo;s first payoff. Sophia has insurance, but her reason is
+&ldquo;best friend&rsquo;s birthday.&rdquo; Under the Q1 resolution,
+<code>intent.insurance_covers = false</code> because birthdays aren&rsquo;t health or
+weather. Layer B&rsquo;s insurance branch requires <code>insurance_covers(Reason)</code>
+to be true, which we don&rsquo;t emit. The branch can&rsquo;t fire. The other
+three branches also can&rsquo;t fire (basic_economy not business; no
+airline-cancelled segment; not within 24h). All four cancellation
+grounds fail; verifier refuses.</p>
+<p>The upstream task explicitly tests that &ldquo;agent understands that
+insurance only covers health or weather reasons.&rdquo; The verifier
+mechanically respects this without any prose understanding — it
+respects it because the intent&rsquo;s structured input says insurance
+doesn&rsquo;t cover this reason, and Layer B&rsquo;s clause is conjunctive.</p>
+<p><strong>Task 49 — Adversarial input.</strong> Anya doesn&rsquo;t have insurance, but the
+user_scenario instructs the user simulator to <em>insist she has insurance</em>.
+A hasty agent might capitulate. The verifier doesn&rsquo;t, because
+<code>intent.insurance_covers = false</code> (matching the ground truth in <code>D₀</code>).
+Layer B&rsquo;s branch requires <code>has_travel_insurance(R)</code>, which is false
+for Anya&rsquo;s reservation. Refusal triggered regardless of customer
+assertion.</p>
+<p>This validates a methodology choice that wasn&rsquo;t obvious upfront:
+making <code>insurance_covers/1</code> a <em>structured input from intent</em>, not a
+customer-asserted predicate, means the verifier is naturally robust
+against customer manipulation. Tasks that test &ldquo;user lies, agent must
+verify&rdquo; — a major category in the upstream airline corpus — fall out
+for free.</p>
+<hr />
+<h2 id="8-honest-accounting">8. Honest accounting</h2>
+<h3 id="81-what-works">8.1 What works</h3>
+<ul>
+<li><strong>Verify</strong> (provable uniqueness via Clingo answer-set enumeration) on
+  both domains.</li>
+<li><strong>Solve</strong> (mechanical D*-derivation, cross-validates with gold) on
+  both domains.</li>
+<li><strong>Generate</strong> (template-driven scaffold synthesis, knob sweeps, JSON
+  export) on retail_returns.</li>
+<li><strong>Complexity metrics</strong> (pruning ratio, constraint coverage) on
+  retail_returns. Airline metrics work too but no diversity (binary 0/0
+  or 1/1 because cancellation has no choice surface).</li>
+<li><strong>JSON-only task authoring</strong> — drive everything from
+  <code>operational_spec.intent</code>. Smoke-tested on retail_returns with a
+  brand-new F-SMOKE task that round-trips through Verify + Solve with
+  zero Python changes.</li>
+<li><strong>Cross-validation</strong> against upstream tasks designed independently —
+  8/8 on airline cancellation slice.</li>
+</ul>
+<h3 id="82-whats-known-incomplete">8.2 What&rsquo;s known incomplete</h3>
+<table>
+<thead>
+<tr>
+<th>Gap</th>
+<th>Severity</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Multi-payment refund allocation (airline)</td>
+<td>Real for v1</td>
+<td>Q-D-A1 single-payment held for cross-val; needed for tasks 7/39/42</td>
+</tr>
+<tr>
+<td>Insurance/baggage fees in refund totals</td>
+<td>Cosmetic for v0</td>
+<td>Documented (+$30 discrepancy on task 29)</td>
+</tr>
+<tr>
+<td>Booking, modification, compensation slices (airline)</td>
+<td>Large scope</td>
+<td>TODO, multi-week</td>
+</tr>
+<tr>
+<td>Behavioral DSL beyond vocabulary</td>
+<td>Methodology gap acknowledged</td>
+<td>v2 work</td>
+</tr>
+<tr>
+<td>NL renderer (spec → prose)</td>
+<td>Methodology gap acknowledged</td>
+<td>v0 hand-writes; v2 generates</td>
+</tr>
+<tr>
+<td>LLM-graded Layer D rules</td>
+<td>Out of LP scope by design</td>
+<td>Lives in eval harness</td>
+</tr>
+<tr>
+<td>Discoverability check</td>
+<td>Methodology gap with explicit proxies</td>
+<td>D-CONF-5/D-CONF-7 cover most cases</td>
+</tr>
+</tbody>
+</table>
+<h3 id="83-what-didnt-generalize-cleanly">8.3 What didn&rsquo;t generalize cleanly</h3>
+<ul>
+<li><strong>The &ldquo;every sort has a stable id&rdquo; assumption.</strong> Bent for
+  Passenger (positional).</li>
+<li><strong>The &ldquo;closed enumerations&rdquo; principle.</strong> Bent for <code>insurance_covers/1</code>
+  (external open-vocabulary).</li>
+<li><strong>The &ldquo;one task identifier&rdquo; assumption.</strong> Bent for FlightInstance
+  (composite).</li>
+</ul>
+<p>In each case, the <em>bend</em> was clean — the methodology absorbed the
+adaptation without principle violation. But each was a place where
+retail_returns&rsquo; worked example was misleadingly simple.</p>
+<h3 id="84-what-surprised-us-in-retrospect">8.4 What surprised us in retrospect</h3>
+<ul>
+<li>
+<p><strong>The two-verifier redundancy paid off bigger than expected.</strong> The
+  date-arithmetic bug would have shipped silently with just the
+  pure-Python verifier; would have shipped silently with just the
+  Clingo verifier. Both running on the same domain caught the
+  disagreement. Recommend this pattern: two independent implementations
+  of the same policy, run in parallel during development.</p>
+</li>
+<li>
+<p><strong>Generate is uncomfortably easy once Verify works.</strong> Generate is
+  the methodology&rsquo;s most ambitious operation. In practice it&rsquo;s just
+  &ldquo;scaffold-then-verify&rdquo;; the heavy lift is Verify. Generate works
+  because if the spec is verifiable, any (D₀, intent) pair that
+  Verify accepts is by definition a valid task.</p>
+</li>
+<li>
+<p><strong>Cross-validation is a force multiplier.</strong> Three hours of work to
+  build the upstream adapter (including discovering and fixing the
+  ID-starting-with-digit bug) turned a &ldquo;validated on tasks we
+  designed&rdquo; claim into &ldquo;validated on tasks designed without
+  awareness of us.&rdquo; The cost-to-evidence ratio is unusual.</p>
+</li>
+<li>
+<p><strong>Tasks 47 and 49 weren&rsquo;t designed to test our methodology.</strong> They
+  were authored by upstream task designers to test the LLM agent&rsquo;s
+  ability to challenge incoherent customer claims. They happen to be
+  <em>exactly</em> the cases where our structured-intent + external-predicate
+  pattern earns its keep. The convergence wasn&rsquo;t planned and is
+  evidence of cross-cutting concerns.</p>
+</li>
+</ul>
+<hr />
+<h2 id="9-what-this-is-and-isnt">9. What this is and isn&rsquo;t</h2>
+<h3 id="91-what-this-is">9.1 What this is</h3>
+<ul>
+<li>A <strong>discipline</strong> for designing benchmark domains where task
+  correctness is mechanically provable rather than tuned by hand.</li>
+<li>A <strong>methodology</strong> that imposes a particular dependency structure
+  (formal spec → rendered prose, not the reverse) and a particular
+  validation discipline (every task verifiable, every modification
+  re-verifiable).</li>
+<li>An <strong>executable demonstration</strong> — two domains, two verifiers, a
+  generator, a cross-validation harness, ~6,000 lines of artifacts.</li>
+<li>A <strong>research artifact</strong> — methodology + worked examples + empirical
+  validation, with negative results (gaps, simplifications, things
+  that bent) documented honestly.</li>
+</ul>
+<h3 id="92-what-this-isnt">9.2 What this isn&rsquo;t</h3>
+<ul>
+<li><strong>Not a production policy engine.</strong> The ASP runs at task-verification
+  scale, not real-time customer-service scale. Production policy
+  enforcement would use a different architecture.</li>
+<li><strong>Not formal verification of real policy.</strong> Real airline policies
+  have ambiguity, exception escalation, regional variation, and
+  undocumented practice. This methodology produces <em>idealized</em>
+  policies — benchmark-grade clarity, not regulatory-grade fidelity.</li>
+<li><strong>Not LLM replacement.</strong> Dialogue, persuasion, courtesy, judgment
+  calls, multi-turn coherence — none of this is in scope. The
+  methodology constrains the <em>correctness backbone</em> the LLM operates
+  against, not the LLM itself.</li>
+<li><strong>Not a complete formal system.</strong> Discoverability (whether the
+  agent could in principle compute D* from C_known + tool lookups) is
+  acknowledged-but-not-encoded. The closest we get is two runtime
+  proxy rules (D-CONF-5/D-CONF-7); the real formalization needs an
+  epistemic model that&rsquo;s deferred to v2.</li>
+</ul>
+<h3 id="93-where-the-methodology-applies">9.3 Where the methodology applies</h3>
+<p>The framework fits domains where:</p>
+<ul>
+<li>Task correctness is dominantly a function of DB endstate (not
+  dialogue subtleties).</li>
+<li>Policy is expressible as integrity constraints + derivation rules
+  with closed-vocabulary classifications (with the external-predicate
+  escape hatch for open ones).</li>
+<li>The action surface is finite and known up front.</li>
+<li>The eval can be DB-hash equality (or structural equality with
+  ID-canonicalization).</li>
+</ul>
+<p>Where it doesn&rsquo;t fit cleanly:</p>
+<ul>
+<li>Domains heavy on numeric optimization (pricing, scheduling) — ASP&rsquo;s
+  grounding cost blows up. SMT or hybrid solvers would be more
+  appropriate. The <em>principles</em> generalize; the <em>engine</em> doesn&rsquo;t.</li>
+<li>Domains where the correctness is dialogue-shape (creative writing,
+  persuasion, therapy). The methodology constrains state, not
+  conversation.</li>
+<li>Domains where the policy is genuinely open-ended (e.g.,
+  &ldquo;appropriately escalate based on customer distress&rdquo;) — anything
+  not reducible to a closed-set classification + structured intent.</li>
+</ul>
+<hr />
+<h2 id="10-future-work">10. Future work</h2>
+<h3 id="101-methodologically-meaningful">10.1 Methodologically meaningful</h3>
+<ul>
+<li><strong>v1 verifier generalization.</strong> Unify <code>clingo_verify.py</code> and
+  <code>clingo_verify_airline.py</code> into a single domain-agnostic core +
+  per-domain encoders. ~1 session.</li>
+<li><strong>NL renderer.</strong> Generate <code>task_instructions</code>, <code>reason_for_call</code>,
+  etc. from the structured spec. v0 hand-writes with consistency
+  checks; v1 generates with LLM polish.</li>
+<li><strong>Behavioral spec DSL.</strong> The controlled vocabulary (lie, insist,
+  withhold, etc.) is enough for v0 to <em>describe</em> adversarial patterns;
+  a DSL with composition operators would let us <em>synthesize</em> them at
+  controlled difficulty. Research-y.</li>
+<li><strong>Discoverability formalization.</strong> Currently hand-audited (with
+  runtime proxies). A proper encoding requires modeling the agent&rsquo;s
+  epistemic state across the conversation — what facts have been
+  read, what&rsquo;s been inferred, what&rsquo;s been told. Epistemic logic
+  programs (Clingo extensions) could carry this; substantial new
+  formalism.</li>
+</ul>
+<h3 id="102-domain-coverage">10.2 Domain coverage</h3>
+<ul>
+<li><strong>Airline booking + modification + compensation slices.</strong> Layer B
+  extensions, action surface expansion, more cross-validation tasks.
+  Multi-week.</li>
+<li><strong>Multi-payment refund allocation.</strong> The most concrete v1
+  follow-up. ~1 session.</li>
+<li><strong>Multi-cancel and multi-modify tasks</strong> (upstream 7, 39, 42).
+  Would relax the &ldquo;one logical transition per task&rdquo; convention.</li>
+<li><strong>A third domain.</strong> Banking disputes, insurance claims, or telecom
+  plan changes. Each would test methodology generalization in a
+  different direction.</li>
+</ul>
+<h3 id="103-productionization">10.3 Productionization</h3>
+<ul>
+<li><strong>Integration with tau2-bench eval harness.</strong> Currently the
+  cross-validation is a separate tool. A v1 would let
+  <code>clingo_verify.py</code> plug into the eval pipeline directly.</li>
+<li><strong>CI for the methodology artifacts.</strong> Every methodology change
+  should re-verify all tasks; every task change should re-verify
+  itself. None of this is automated yet.</li>
+<li><strong>Authoring tool.</strong> A v1 &ldquo;task editor&rdquo; that prompts the author for
+  the structured intent, runs Verify in the background, and surfaces
+  ambiguities in real time. The methodology supports this; nothing
+  has been built.</li>
+</ul>
+<hr />
+<h2 id="11-reproducibility">11. Reproducibility</h2>
+<p>All artifacts live under <code>logic-first-design/</code> in this repo
+(<code>victorb/asp-test</code> branch). The directory is self-contained:</p>
+<pre><code>logic-first-design/
+├── README.md
+├── pyproject.toml         # uv-managed, single dependency: clingo&gt;=5.6
+├── docs/
+│   ├── methodology.md
+│   └── findings.md        # this document
+├── domains/
+│   ├── retail_returns/    # 8 spec files + db.json + tasks.json
+│   ├── airline/           # 6 spec files + db.json + tasks.json (cancel slice)
+│   └── airline_reference/ # original extraction reference
+└── tools/                 # 5 Python modules
+</code></pre>
+<p>To reproduce:</p>
+<pre><code class="language-sh">cd logic-first-design
+uv sync                                          # one-time setup
+uv run python tools/verify_retail_returns.py    # 6/6 pure-Python
+uv run python tools/clingo_verify.py            # 6/6 Clingo
+uv run python tools/generate.py                 # 6/6 Generate
+uv run python tools/clingo_verify_airline.py    # 2/2 synthetic airline
+uv run python tools/cross_validate_airline.py   # 8/8 upstream airline
+</code></pre>
+<p>Cross-validation reads from
+<code>/Users/victorbarres/scripts/tau2-bench/data/tau2/domains/airline/</code>
+— the upstream tau2-bench airline data shipping in the parent repo.
+Hardcoded path; would need adjustment for relocation.</p>
+<p>Total wall-clock time for all 5 commands: under 30 seconds on a 2024
+laptop.</p>
+<hr />
+<h2 id="12-project-arc-selected-milestones">12. Project arc (selected milestones)</h2>
+<p>For context on how this developed across the project:</p>
+<ul>
+<li><strong>Methodology drafted</strong> + retail_returns Layers A–D drafted
+  (<a href="../../commits/4096f50"><code>4096f50</code></a>).</li>
+<li><strong>Reconciliation pass</strong> after a critic review surfaced cross-layer
+  bugs (<a href="../../commits/5a4e6f4"><code>5a4e6f4</code></a>). Key decision: drop
+  <code>reject_return</code> from v0 to make <code>policy_noop</code> give <code>D* = D₀</code>
+  cleanly.</li>
+<li><strong>Layers E + F drafted</strong> (<a href="../../commits/3579367"><code>3579367</code></a>,
+  <a href="../../commits/8dc2368"><code>8dc2368</code></a>).</li>
+<li><strong>Pure-Python verifier passes 6/6</strong> + catches 5/5 deliberate bug
+  injections (<a href="../../commits/2bb9e20"><code>2bb9e20</code></a>).</li>
+<li><strong>Package gathered</strong> into self-contained <code>logic-first-design/</code>
+  directory (<a href="../../commits/3539548"><code>3539548</code></a>).</li>
+<li><strong>First Clingo verifier (F-001 prototype)</strong>
+  (<a href="../../commits/94564bf"><code>94564bf</code></a>).</li>
+<li><strong>Phase 1 generalized + complexity metrics + date-arithmetic bug
+  fix</strong> (<a href="../../commits/e5b92ae"><code>e5b92ae</code></a>). This is where the
+  two-verifier redundancy paid off.</li>
+<li><strong>Solve operation</strong> — cross-validates with gold trajectories 6/6
+  (<a href="../../commits/84046f5"><code>84046f5</code></a>).</li>
+<li><strong>Structured intent field</strong> — JSON-only task authoring
+  (<a href="../../commits/1fb6728"><code>1fb6728</code></a>).</li>
+<li><strong>Generate operation</strong> + scenario-driven synthesis
+  (<a href="../../commits/b54ea6d"><code>b54ea6d</code></a>).</li>
+<li><strong>Generate v0.1 polish</strong> — CLI, knob sweeps, JSON export
+  (<a href="../../commits/dc2fb91"><code>dc2fb91</code></a>).</li>
+<li><strong>Airline retrofit Layer A–D drafted</strong>
+  (<a href="../../commits/9879e13"><code>9879e13</code></a>, <a href="../../commits/a3b27db"><code>a3b27db</code></a>,
+  <a href="../../commits/3d14b17"><code>3d14b17</code></a>).</li>
+<li><strong>Airline verifier 2/2 synthetic</strong>
+  (<a href="../../commits/a1877d5"><code>a1877d5</code></a>).</li>
+<li><strong>Cross-validation 3/3 then 8/8 upstream tasks</strong> + Solve for airline
+  (<a href="../../commits/7c395f3"><code>7c395f3</code></a>,
+  <a href="../../commits/85f845a"><code>85f845a</code></a>).</li>
+</ul>
+<p>Twenty commits total on <code>victorb/asp-test</code>. Each session produced a
+focused, committed unit; the discipline of &ldquo;always commit at the end
+of a substantive session&rdquo; matched the methodology&rsquo;s discipline of
+&ldquo;always verify after every change.&rdquo;</p>
+<hr />
+<h2 id="13-the-bottom-line">13. The bottom line</h2>
+<p>A methodology for designing benchmark domains was authored, applied to
+a greenfield example, and stress-tested against an existing corpus
+designed independently of it. The headline number — <strong>8/8 upstream
+agreement</strong> — supports the core claim that the framework generalizes.
+The bugs caught and the simplifications surfaced are documented; the
+remaining gaps are named and tractable.</p>
+<p>The original pain — &ldquo;extremely difficult to give guarantees of
+correctness&rdquo; — has a different answer now. Where that difficulty
+came from drift, redundant authoring, and emergent uniqueness, the
+methodology offers a single canonical spec, mechanical derivation, and
+provable uniqueness by Clingo enumeration. The work that remains is
+<em>coverage</em> (more slices, more tasks, more domains) — not foundational
+risk.</p>
+<p>That&rsquo;s the result this writeup is for.</p>
+</main>
+<footer class="footer">
+  Generated from <code>docs/findings.md</code> via <code>tools/render_doc.py</code>.
+</footer>
+</body>
+</html>

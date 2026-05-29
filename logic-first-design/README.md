@@ -17,6 +17,18 @@ A thorough writeup of what was built, proven, and learned lives at
 [`docs/findings.md`](docs/findings.md). Start there if you want the
 evaluation; start with `docs/methodology.md` if you want the method.
 
+Both docs also have **standalone HTML versions** —
+[`docs/findings.html`](docs/findings.html) and
+[`docs/methodology.html`](docs/methodology.html) — generated from the
+markdown via `tools/render_doc.py`. Each is a single self-contained
+file (no external CSS, no CDN, no images) suitable for sharing as an
+attachment or hosting as a static page. To re-render after editing the
+markdown:
+
+```sh
+uv run python tools/render_doc.py findings methodology
+```
+
 ```
 logic-first-design/
   README.md                       ← you are here

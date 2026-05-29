@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Methodology</title>
+<meta name="description" content="Five principles, six layers, three operations">
+<style>
+:root {
+  --content-width: 760px;
+  --font-body: 'Charter', 'Iowan Old Style', 'Apple Garamond', Baskerville, Georgia, 'Times New Roman', serif;
+  --font-mono: 'SF Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --color-text: #1a1a1a;
+  --color-muted: #6b7280;
+  --color-accent: #1d4ed8;
+  --color-accent-soft: #dbeafe;
+  --color-border: #e5e7eb;
+  --color-banner: #111827;
+  --color-banner-text: #f9fafb;
+  --color-bg-soft: #fafafa;
+  --color-code-bg: #f3f4f6;
+  --color-code-border: #e5e7eb;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--color-text);
+  background: #fff;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.banner {
+  background: var(--color-banner);
+  color: var(--color-banner-text);
+  padding: 5rem 2rem 4rem;
+  border-bottom: 1px solid #1f2937;
+}
+.banner-inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+}
+.banner .eyebrow {
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #9ca3af;
+  margin: 0 0 1rem;
+}
+.banner h1 {
+  font-family: var(--font-sans);
+  font-size: 2.6rem;
+  margin: 0 0 0.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.banner .subtitle {
+  font-family: var(--font-sans);
+  color: #d1d5db;
+  font-size: 1.15rem;
+  margin: 0;
+  line-height: 1.4;
+}
+.banner .meta {
+  font-family: var(--font-sans);
+  color: #9ca3af;
+  font-size: 0.85rem;
+  margin-top: 2rem;
+}
+.banner .meta a {
+  color: #d1d5db;
+  border-bottom: 1px solid #4b5563;
+}
+
+.container {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+}
+
+/* Table of contents */
+.toc {
+  background: var(--color-bg-soft);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.5rem 2rem 1.5rem 2rem;
+  margin: 0 0 3.5rem;
+  font-family: var(--font-sans);
+}
+.toc-heading {
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  margin: 0 0 1rem;
+}
+.toc ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.toc ul ul {
+  margin-left: 1rem;
+  margin-top: 0.25rem;
+}
+.toc li {
+  margin: 0.35rem 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+.toc a {
+  color: var(--color-text);
+  text-decoration: none;
+  border-bottom: none;
+}
+.toc a:hover {
+  color: var(--color-accent);
+}
+
+/* Headings in body */
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  margin-top: 3rem;
+  margin-bottom: 1rem;
+}
+h1 {
+  font-size: 2rem;
+  border-bottom: 2px solid var(--color-text);
+  padding-bottom: 0.5rem;
+}
+h2 {
+  font-size: 1.55rem;
+  margin-top: 3.5rem;
+}
+h3 {
+  font-size: 1.2rem;
+  color: #374151;
+}
+h4 {
+  font-size: 1.05rem;
+  color: #4b5563;
+}
+
+/* Anchor hover affordance on headings */
+h1, h2, h3, h4 { position: relative; }
+h2:hover::before, h3:hover::before {
+  content: '§';
+  position: absolute;
+  left: -1.4rem;
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
+p { margin: 1rem 0; }
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(29, 78, 216, 0.25);
+  transition: border-color 0.15s ease;
+}
+a:hover {
+  border-bottom-color: var(--color-accent);
+}
+
+strong { font-weight: 700; color: #111827; }
+
+em { font-style: italic; }
+
+/* Code */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--color-code-bg);
+  padding: 0.12em 0.35em;
+  border-radius: 3px;
+  border: 1px solid var(--color-code-border);
+}
+pre {
+  font-family: var(--font-mono);
+  background: var(--color-code-bg);
+  border: 1px solid var(--color-code-border);
+  padding: 1rem 1.25rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.86em;
+  line-height: 1.55;
+  margin: 1.25rem 0;
+}
+pre code {
+  background: none;
+  padding: 0;
+  border: none;
+  font-size: 1em;
+}
+
+/* Blockquotes */
+blockquote {
+  border-left: 4px solid var(--color-accent);
+  background: var(--color-accent-soft);
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem 1rem 1.5rem;
+  color: #1e3a8a;
+  border-radius: 0 4px 4px 0;
+  font-style: normal;
+}
+blockquote p { margin: 0.5rem 0; }
+blockquote p:first-child { margin-top: 0; }
+blockquote p:last-child { margin-bottom: 0; }
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.75rem 0;
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+th, td {
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  background: var(--color-bg-soft);
+  color: #374151;
+  border-bottom: 2px solid #d1d5db;
+}
+tbody tr:hover {
+  background: rgba(29, 78, 216, 0.03);
+}
+
+/* Lists */
+ul, ol {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+}
+li { margin: 0.35rem 0; }
+li > p { margin: 0.4rem 0; }
+li > ul, li > ol { margin: 0.4rem 0; }
+
+/* Horizontal rule */
+hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 3.5rem 0;
+}
+
+/* Footer */
+.footer {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 2rem;
+  border-top: 1px solid var(--color-border);
+  font-family: var(--font-sans);
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* Print styles */
+@media print {
+  body { font-size: 11pt; }
+  .banner {
+    background: #fff;
+    color: var(--color-text);
+    border-bottom: 2px solid var(--color-text);
+    padding: 1.5rem 0 1rem;
+    page-break-after: avoid;
+  }
+  .banner .eyebrow, .banner .subtitle, .banner .meta { color: var(--color-muted); }
+  .banner .meta a { color: var(--color-muted); }
+  .container { padding: 1rem 0; max-width: 100%; }
+  .toc { background: none; border: 1px solid var(--color-border); }
+  a { color: var(--color-text); border-bottom: 1px dotted var(--color-muted); }
+  h1, h2 { page-break-after: avoid; }
+  table, pre, blockquote { page-break-inside: avoid; }
+  .footer { border-top: 1px solid var(--color-border); }
+}
+
+/* Responsive */
+@media (max-width: 700px) {
+  body { font-size: 16px; }
+  .banner { padding: 3rem 1.25rem 2.5rem; }
+  .banner h1 { font-size: 1.9rem; }
+  .banner .subtitle { font-size: 1rem; }
+  .container { padding: 2rem 1.25rem 4rem; }
+  .toc { padding: 1.25rem 1.5rem; }
+  h2 { font-size: 1.35rem; }
+  h3 { font-size: 1.1rem; }
+  table { font-size: 0.85rem; }
+  th, td { padding: 0.5rem 0.6rem; }
+}
+</style>
+</head>
+<body>
+<header class="banner">
+  <div class="banner-inner">
+    <p class="eyebrow">Logic-First Domain Design</p>
+    <h1>Methodology</h1>
+    <p class="subtitle">Five principles, six layers, three operations</p>
+    <p class="meta">Companion to <a href="findings.html">findings.html</a> — this is the framework; that one is the empirical writeup.</p>
+  </div>
+</header>
+<main class="container">
+<nav class="toc"><p class="toc-heading">Contents</p>
+<ul>
+<li><a href="#1-why-we-are-doing-this">1. Why we are doing this</a></li>
+<li><a href="#2-five-principles">2. Five principles</a></li>
+<li><a href="#3-the-layer-dependency-map">3. The layer dependency map</a></li>
+<li><a href="#4-task-model">4. Task model</a><ul>
+<li><a href="#operationalspec">OperationalSpec</a></li>
+<li><a href="#behavioralspec">BehavioralSpec</a></li>
+<li><a href="#the-three-task-classes">The three task classes</a></li>
+</ul>
+</li>
+<li><a href="#5-the-three-operations-the-system-performs">5. The three operations the system performs</a></li>
+<li><a href="#6-where-logical-reasoning-lives-and-where-it-doesnt">6. Where logical reasoning lives, and where it doesn&rsquo;t</a></li>
+<li><a href="#7-behavioral-layer-vocabulary-not-dsl">7. Behavioral layer — vocabulary, not DSL</a></li>
+<li><a href="#8-rendering-spec-is-canonical-prose-is-hand-written">8. Rendering: spec is canonical, prose is hand-written</a></li>
+<li><a href="#9-what-this-methodology-does-not-solve">9. What this methodology does not solve</a></li>
+<li><a href="#10-phasing">10. Phasing</a></li>
+<li><a href="#11-open-methodology-questions">11. Open methodology questions</a></li>
+<li><a href="#12-worked-example">12. Worked example</a><ul>
+<li><a href="#121-airline-retrofit-in-progress">12.1 Airline retrofit (in progress)</a></li>
+</ul>
+</li>
+<li><a href="#13-status-and-changelog">13. Status and changelog</a></li>
+</ul>
+</nav>
+
+<p>A methodology for designing tau-bench-style benchmark domains by starting from a
+formal logical specification and projecting natural language, code, database
+state, and tasks from it — rather than authoring those artifacts independently
+and reconciling them by hand.</p>
+<p>This document is the <strong>methodology</strong>. The accompanying <strong>worked example</strong> lives
+under <a href="../domains/retail_returns/"><code>domains/retail_returns/</code></a>
+and instantiates each layer described here.</p>
+<p>This is <strong>not</strong> a fill-in-the-blank template. Templates encode commitments
+(required fields, grammar, optionality) that we have not yet earned the right
+to make. A worked example does most of the same job — showing what &ldquo;good&rdquo;
+looks like — without prematurely freezing the format. A template, if and when
+we write one, comes after we have used this methodology to build at least one
+fresh domain end-to-end and retrofitted at least one existing one.</p>
+<hr />
+<h2 id="1-why-we-are-doing-this">1. Why we are doing this</h2>
+<p>The airline domain is the reference point. Its current artifact stack is:</p>
+<ul>
+<li><code>policy.md</code> — natural-language policy.</li>
+<li><code>data_model.py</code> — Pydantic schemas.</li>
+<li><code>db.json</code> — instances.</li>
+<li><code>tasks.json</code> — natural-language user scenarios + gold action sequences.</li>
+<li>Tool implementations — enforcement logic for the parts of the policy that
+  happen to be machine-checkable.</li>
+</ul>
+<p>Each of these encodes part of the domain&rsquo;s meaning. None of them is
+authoritative. To answer a simple question like &ldquo;is this booking valid?&rdquo; you
+have to triangulate across all five. Three concrete consequences fall out of
+that:</p>
+<ol>
+<li><strong>Drift.</strong> Closed enumerations exist in code (<code>FlightDateStatus</code> has 6
+   cases) that are not present in policy (<code>policy.md</code> lists 4). The policy&rsquo;s
+   &ldquo;(basic) economy&rdquo; idiom is not enforced by any schema. Tool implementations
+   silently encode rules that policy mentions only in passing.</li>
+<li><strong>Uniqueness of task solutions is emergent, not designed.</strong> The DB and the
+   user scenarios were iteratively tuned by hand until the gold action
+   sequence happened to be the only one that passed the eval. No machine-
+   checkable proof exists that another DB state could not also have satisfied
+   the user&rsquo;s stated constraints under the policy.</li>
+<li><strong>Natural language is treated as input.</strong> Policy is authored in prose;
+   tasks are authored in prose. The structured artifacts (schema, gold
+   actions, tests) are derived by hand from the prose. This is the wrong
+   direction of dependency: prose is good for human consumption but bad for
+   precision, and we are using it as the precision-bearing source.</li>
+</ol>
+<p>This methodology inverts those dependencies. The formal core is authoritative;
+everything else — code, DB, prose, tasks — is downstream.</p>
+<hr />
+<h2 id="2-five-principles">2. Five principles</h2>
+<ol>
+<li>
+<p><strong>One source of truth per layer.</strong> No prose policy that drifts from code,
+   no code schema that drifts from policy, no DB that violates declared
+   invariants. Each artifact has exactly one upstream source. Where two
+   artifacts overlap (e.g., the policy mentions cardinalities and the schema
+   enforces them), one is generated from the other; never both hand-written.</p>
+</li>
+<li>
+<p><strong>Closed enumerations are declared, finite, and authoritative.</strong> Cabin
+   classes, statuses, action types, payment kinds — declared once, in a single
+   place, with no implicit additions. If the encoding needs a <code>landed</code> status
+   in addition to the four documented ones, the closed enumeration changes,
+   not the consumer code.</p>
+</li>
+<li>
+<p><strong>Actions are first-class transition predicates.</strong> Each agent-callable
+   tool corresponds to one action with a declared signature, preconditions,
+   effects, and validity rules. The Pydantic schema, the policy clause, and
+   the tool implementation are <em>all three</em> derived from the action spec; they
+   are not parallel sources to be reconciled.</p>
+</li>
+<li>
+<p><strong>Policy is layered, not monolithic.</strong> The current <code>policy.md</code> fuses three
+   kinds of rule that have different audiences and different formal homes:</p>
+</li>
+<li>
+<p><strong>World invariants</strong> — properties the world satisfies whether the agent
+     does anything or not (<code>|passengers| ≤ 5</code>). Never violable.</p>
+</li>
+<li><strong>Action validity</strong> — preconditions on transitions (<code>can't cancel basic
+     economy mid-flight</code>). The agent could attempt the action; the world
+     refuses it.</li>
+<li><strong>Agent contract</strong> — deontic, dialogue-shape rules (<code>must confirm before
+     mutating</code>, <code>deny vs transfer</code>). The world doesn&rsquo;t refuse; the agent
+     refuses.</li>
+</ol>
+<p>These three layers are kept separate.</p>
+<ol>
+<li>
+<p><strong>Tasks are queries with provable preconditions.</strong> A task is a constraint
+   set over the final DB state, starting from a given DB. Three preconditions
+   are required of every task:</p>
+</li>
+<li>
+<p><strong>Soundness</strong> — the intended answer satisfies policy ∧ constraints.</p>
+</li>
+<li><strong>Uniqueness</strong> — no other answer also satisfies them.</li>
+<li><strong>Discoverability</strong> — the agent can reach the intended answer using only
+     the information the user volunteers plus information retrievable from
+     the DB by available tools.</li>
+</ol>
+<p>These properties are <em>machine-checkable</em> outputs of the methodology, not
+   aspirations we approach by hand-tuning.</p>
+<hr />
+<h2 id="3-the-layer-dependency-map">3. The layer dependency map</h2>
+<p>Six layers, each producing one artifact, each consuming only upstream layers.</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Name</th>
+<th>Output</th>
+<th>Depends on</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A</strong></td>
+<td>Ontology</td>
+<td>Sorts, attributes, derived predicates, closed enumerations</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>B</strong></td>
+<td>World rules</td>
+<td>Integrity constraints and derivations (ASP rules)</td>
+<td>A</td>
+</tr>
+<tr>
+<td><strong>C</strong></td>
+<td>Actions</td>
+<td>Transition predicates: signature + pre + effect + validity, per action</td>
+<td>A, B</td>
+</tr>
+<tr>
+<td><strong>D</strong></td>
+<td>Agent contract</td>
+<td>Deontic layer: confirmation, refusal, transfer, dialogue-shape rules</td>
+<td>A, B, C</td>
+</tr>
+<tr>
+<td><strong>E</strong></td>
+<td>World instantiation</td>
+<td>A baseline DB (<code>D₀</code>) that satisfies A–C</td>
+<td>A, B</td>
+</tr>
+<tr>
+<td><strong>F</strong></td>
+<td>Tasks</td>
+<td><code>(D₀, OperationalSpec, BehavioralSpec)</code> tuples with proven uniqueness</td>
+<td>A–E</td>
+</tr>
+</tbody>
+</table>
+<p>Downstream artifacts (generated, never hand-authored if avoidable):</p>
+<ul>
+<li><strong>Data model code</strong> (e.g., Pydantic) — generated from A.</li>
+<li><strong>Tool stubs + validators</strong> — generated from A + C.</li>
+<li><strong>NL <code>policy.md</code></strong> — rendered from A + B + C + D.</li>
+<li><strong>NL <code>task_instructions</code></strong> — rendered from F&rsquo;s OperationalSpec + BehavioralSpec.</li>
+<li><strong>Evaluation criteria</strong> (<code>actions[]</code>, <code>nl_assertions</code>, <code>communicate_info</code>) —
+  derived from F.</li>
+</ul>
+<p>Rendering is hand-written for v0 (see §6 on rendering ambition), but the spec
+is treated as authoritative: any divergence between prose and spec is a bug in
+the prose, not in the spec.</p>
+<hr />
+<h2 id="4-task-model">4. Task model</h2>
+<p>A task is a tuple <code>T = (D₀, OperationalSpec, BehavioralSpec)</code>.</p>
+<h3 id="operationalspec"><code>OperationalSpec</code></h3>
+<p>The structured intent. Four sub-bags:</p>
+<ul>
+<li><code>C_hard</code> — properties the final DB state must have. (User wants a return for
+  order X with items {a, b}, refund to original payment, on 2026-05-20.)</li>
+<li><code>C_soft</code> — preferences with explicit fallback. (&ldquo;Refund to original card if
+  possible; otherwise accept store credit.&rdquo;)</li>
+<li><code>C_known</code> — facts the user volunteers without being asked.</li>
+<li><code>C_unknown</code> — facts the user does not know but the agent must derive
+  (typically through DB lookups: &ldquo;I forget which item I want to return, but
+  it&rsquo;s the one I bought last week&rdquo;).</li>
+</ul>
+<h3 id="behavioralspec"><code>BehavioralSpec</code></h3>
+<p>Dialogue-shape directives, in semi-structured NL using a controlled vocabulary
+of move primitives (see §7). Things like:</p>
+<ul>
+<li><code>(insist, count=3)</code> — escalate three times before backing off.</li>
+<li><code>(lie, claim="I'm a Plus member")</code> — assert a false fact.</li>
+<li><code>(misremember, fact="purchase date")</code> — be wrong about something.</li>
+<li><code>(fallback, condition="price &gt; X", action="drop second item")</code> — branch on
+  what the agent reveals.</li>
+<li><code>(appeal_to_authority, claim="customer support told me ...")</code> — pressure
+  pattern.</li>
+</ul>
+<p>The BehavioralSpec carries dialogue dynamics; it does <strong>not</strong> affect what the
+correct final DB state is. The OperationalSpec carries the world-shape
+constraints; it does <strong>not</strong> prescribe the dialogue.</p>
+<h3 id="the-three-task-classes">The three task classes</h3>
+<p>Every task gets the same structure. The verifier classifies each as one of:</p>
+<ul>
+<li><strong><code>intent_noop</code></strong> — <code>C_hard</code> requests no mutation. <code>D* = D₀</code> trivially.</li>
+<li><strong><code>policy_noop</code></strong> — <code>C_hard</code> requests a mutation, but policy denies it under
+  <code>D₀</code>. <code>D* = D₀</code> with a <em>reason trace</em> (which rules fired the refusal).</li>
+<li><strong><code>mutating</code></strong> — <code>D* ≠ D₀</code>, derivable from <code>(D₀, Policy, C_hard)</code>.</li>
+</ul>
+<p><code>policy_noop</code> is the most LP-valuable: it&rsquo;s where the formal layer proves the
+correct answer is a refusal <em>and</em> tells us why.</p>
+<hr />
+<h2 id="5-the-three-operations-the-system-performs">5. The three operations the system performs</h2>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Input</th>
+<th>Output</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Verify</strong></td>
+<td><code>(D₀, OperationalSpec, D*)</code></td>
+<td>answer-set count + diff for any extras</td>
+<td>confirm a hand-authored task is well-posed</td>
+</tr>
+<tr>
+<td><strong>Solve</strong></td>
+<td><code>(D₀, OperationalSpec)</code></td>
+<td>the unique <code>D*</code> (or <code>ambiguous</code> / <code>infeasible</code>)</td>
+<td>derive ground-truth DB state from spec</td>
+</tr>
+<tr>
+<td><strong>Generate</strong></td>
+<td><code>(OperationalSpec template, knobs)</code></td>
+<td>a <code>D₀</code> (possibly a delta over a shared baseline) such that the task has a unique solution</td>
+<td>sample the task space at controlled difficulty</td>
+</tr>
+</tbody>
+</table>
+<p>Verify is the cheapest and gives the highest immediate ROI on existing
+corpora. Solve replaces the &ldquo;gold actions as ground truth&rdquo; pattern with
+&ldquo;solver output as ground truth.&rdquo; Generate is the hardest and where the
+methodology&rsquo;s design risk lives.</p>
+<p>Generate, for v0, is implemented as <strong>generate-then-verify</strong>: enumerate
+candidate <code>D₀</code>s subject to the spec, then run Verify on each. Slow but
+conceptually clean. A more efficient <strong>witness + perturbation</strong> encoding is a
+follow-up.</p>
+<hr />
+<h2 id="6-where-logical-reasoning-lives-and-where-it-doesnt">6. Where logical reasoning lives, and where it doesn&rsquo;t</h2>
+<p>The formal core is ASP (Clingo). It handles:</p>
+<ul>
+<li>Closed enumerations and finite-domain constraints.</li>
+<li>Cardinality bounds (<code>≤ N</code>, <code>≥ N</code>, <code>= N</code>).</li>
+<li>Defaults with exceptions (the canonical ASP strength).</li>
+<li>Integrity constraints (<code>:- bad_state</code>).</li>
+<li>Choice rules (for action selection and DB generation).</li>
+</ul>
+<p>External (host-language) predicates handle:</p>
+<ul>
+<li><strong>Money arithmetic.</strong> Prices, totals, refund amounts. Computed once and
+  asserted as facts.</li>
+<li><strong>Date/time arithmetic.</strong> &ldquo;Within N days of …&rdquo; is a host predicate that
+  emits a boolean fact (<code>recent_purchase(O)</code>). Calendar reasoning does not
+  live in ASP.</li>
+<li><strong>Status classification.</strong> &ldquo;Any item already shipped&rdquo; is a host predicate
+  that surfaces a single boolean fact.</li>
+</ul>
+<p>This avoids ASP&rsquo;s grounding blow-up on numeric domains. The cost is one extra
+layer (the encoder); the benefit is decidability and a small grounding.</p>
+<p>For domains where numeric/temporal reasoning is the <em>core</em> of the policy (e.g.,
+finance, scheduling), this methodology applies but the formal core may swap
+out (SMT, hybrid). The <em>principles</em> generalize; the <em>engine</em> is a design
+choice per domain.</p>
+<hr />
+<h2 id="7-behavioral-layer-vocabulary-not-dsl">7. Behavioral layer — vocabulary, not DSL</h2>
+<p>The behavioral layer (adversarial dialogue, manipulation, refusal, fallback)
+is not formalized in v0. Instead we maintain a <strong>controlled vocabulary</strong> of
+move primitives that authors tag in NL <code>task_instructions</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Primitive</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>assert(fact)</code></td>
+<td>State a fact (assumed true unless flagged).</td>
+</tr>
+<tr>
+<td><code>lie(fact)</code></td>
+<td>State a fact known to be false in <code>D₀</code>.</td>
+</tr>
+<tr>
+<td><code>misremember(fact)</code></td>
+<td>State a wrong value for a fact the user genuinely doesn&rsquo;t know precisely.</td>
+</tr>
+<tr>
+<td><code>insist(count=N)</code></td>
+<td>Repeat a request N times after pushback before backing off.</td>
+</tr>
+<tr>
+<td><code>fallback(condition, action)</code></td>
+<td>Conditional plan: do X if condition, else Y.</td>
+</tr>
+<tr>
+<td><code>appeal_to_authority(source)</code></td>
+<td>Cite a third party to override agent judgment.</td>
+</tr>
+<tr>
+<td><code>threaten_escalation</code></td>
+<td>Threaten to ask for a supervisor.</td>
+</tr>
+<tr>
+<td><code>drop_constraint(c)</code></td>
+<td>Voluntarily relax constraint <code>c</code> if pressed.</td>
+</tr>
+<tr>
+<td><code>change_topic(new_intent)</code></td>
+<td>Pivot to an unrelated request.</td>
+</tr>
+<tr>
+<td><code>withhold(fact, until=condition)</code></td>
+<td>Don&rsquo;t reveal a fact unless asked or condition met.</td>
+</tr>
+</tbody>
+</table>
+<p>This vocabulary is enough to <em>describe</em> and <em>sample</em> adversarial patterns
+without committing to a grammar. A DSL with composition operators is a v2
+artifact. The vocabulary is the v0 contract.</p>
+<hr />
+<h2 id="8-rendering-spec-is-canonical-prose-is-hand-written">8. Rendering: spec is canonical, prose is hand-written</h2>
+<p>For v0, NL prose (policy.md, task_instructions, tool descriptions) is
+<strong>hand-written</strong> but <strong>consistency-checked</strong> against the spec. The check:</p>
+<ul>
+<li>Every machine-checkable claim in the prose traces to a rule or fact in the
+  spec.</li>
+<li>Every rule in the spec that is user-facing is mentioned in some prose
+  artifact.</li>
+</ul>
+<p>A renderer (spec → prose) is a v2 artifact built only if hand-rendering
+becomes the bottleneck. The methodology commits that rendering <em>is</em> possible
+from the spec; it does not commit that we build the renderer now.</p>
+<hr />
+<h2 id="9-what-this-methodology-does-not-solve">9. What this methodology does not solve</h2>
+<p>Honest accounting of the gaps:</p>
+<ol>
+<li>
+<p><strong>Dialogue quality.</strong> A task with a logically-correct OperationalSpec can
+   still be a bad benchmark task if the rendered NL is robotic, ambiguous, or
+   stilted. Style is not formalizable.</p>
+</li>
+<li>
+<p><strong>Real-world policy fidelity.</strong> Real policies (insurance, banking,
+   healthcare) have ambiguity, exception escalation, regional variation, and
+   undocumented practice. This methodology produces <em>idealized</em> policies. The
+   tradeoff is intentional — benchmark domains are simulated worlds, and
+   logical clarity beats realism in that setting — but it should not be
+   confused with formal verification of an actual production policy.</p>
+</li>
+<li>
+<p><strong>Adversarial behavior generation.</strong> The Behavioral vocabulary lets us
+   describe adversarial patterns; it does not let us synthesize them at
+   controlled difficulty. That is a separate research thread.</p>
+</li>
+<li>
+<p><strong>Multi-turn world dynamics.</strong> This methodology assumes the world state
+   evolves only through agent actions. Domains where the world changes
+   independently mid-conversation (real-time inventory, live pricing) need a
+   richer model.</p>
+</li>
+</ol>
+<hr />
+<h2 id="10-phasing">10. Phasing</h2>
+<p>A reasonable build order, given a fresh domain:</p>
+<ol>
+<li><strong>Layers A–B</strong>: ontology + world rules. ASP encoding.</li>
+<li><strong>Layer C</strong>: actions. Transition predicates. Generate the Pydantic schema
+   and tool stubs from this.</li>
+<li><strong>Layer D</strong>: agent contract. Deontic layer. Render the human-facing
+   <code>policy.md</code> from A + B + C + D.</li>
+<li><strong>Layer E</strong>: instantiate <code>D₀</code>. Either author by hand and verify, or sample
+   a valid model from A + B.</li>
+<li><strong>Verifier first, solver next</strong>: prove that Verify works on a single
+   hand-authored task. Then drop the <code>D*</code> ground truth and recover it from
+   <code>(D₀, OperationalSpec)</code> via Solve.</li>
+<li><strong>Layer F + Generate</strong>: task generation at controlled difficulty.</li>
+<li><strong>Render</strong>: hand-write NL prose for the first ~5 tasks. Use those to
+   stress-test the BehavioralSpec vocabulary.</li>
+<li><strong>Retrofit airline</strong>: with the methodology proven on a greenfield, fold the
+   airline domain back in. This will surface methodology gaps that
+   greenfielding doesn&rsquo;t (because greenfielding has no legacy to honor).</li>
+</ol>
+<hr />
+<h2 id="11-open-methodology-questions">11. Open methodology questions</h2>
+<p>These are interpretive choices we have not yet committed to. They will be
+resolved during the worked example and folded back into v2 of this doc.</p>
+<ul>
+<li><strong>Per-task D₀ vs shared D₀.</strong> Airline uses a shared D₀. The retail worked
+  example will use a shared baseline with per-task <em>deltas</em> (added orders,
+  added customers) layered on top.</li>
+<li><strong>Soft constraint resolution.</strong> <code>C_soft</code> with conditional fallback (&ldquo;if
+  price &gt; $X, drop the item&rdquo;) can be resolved at solve time (compute against
+  <code>D₀</code>&rsquo;s actual prices) or pre-resolved at authoring time. We default to
+  solve-time and revisit if it causes pain.</li>
+<li><strong>Discoverability check — known gap.</strong> Principle 5 lists discoverability
+  as a machine-checkable precondition, but v0 does not actually check it
+  formally. Encoding it would require modeling the agent&rsquo;s information state
+  (what facts the agent has read so far in the conversation), which is a
+  richer formalism than constraints over <code>D*</code>. v0 falls back to two coarser
+  proxies: (a) Layer D rules (D-CONF-5 and D-CONF-7 in
+  <a href="../domains/retail_returns/agent_contract.md"><code>agent_contract.md</code></a>)
+  require the agent to have called <code>get_order_details</code> and
+  <code>get_customer_details</code> before mutating, and (b) a hand-audit at
+  task-authoring time. Full discoverability is a v1 artifact. The principle
+  remains in the methodology because the long-term commitment matters; the
+  v0 gap is explicit rather than hidden.</li>
+</ul>
+<p><strong>Locked since v0.1 (no longer open):</strong>
+- ~~Multi-action tasks~~ — locked to &ldquo;at most one mutating action per task&rdquo;
+  in <a href="../domains/retail_returns/actions.md"><code>actions.md</code></a> §6.</p>
+<hr />
+<h2 id="12-worked-example">12. Worked example</h2>
+<p>See <a href="../domains/retail_returns/"><code>domains/retail_returns/</code></a> for the
+worked-example domain. The current state of the worked example, by
+layer:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>File</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A — Ontology</td>
+<td><a href="../domains/retail_returns/ontology.md"><code>ontology.md</code></a></td>
+<td>drafted</td>
+</tr>
+<tr>
+<td>B — World rules</td>
+<td><a href="../domains/retail_returns/rules.md"><code>rules.md</code></a></td>
+<td>drafted</td>
+</tr>
+<tr>
+<td>C — Actions</td>
+<td><a href="../domains/retail_returns/actions.md"><code>actions.md</code></a></td>
+<td>drafted</td>
+</tr>
+<tr>
+<td>D — Agent contract</td>
+<td><a href="../domains/retail_returns/agent_contract.md"><code>agent_contract.md</code></a></td>
+<td>drafted</td>
+</tr>
+<tr>
+<td>E — <code>D₀</code></td>
+<td><a href="../domains/retail_returns/db.json"><code>db.json</code></a> + <a href="../domains/retail_returns/db_design.md"><code>db_design.md</code></a></td>
+<td>drafted</td>
+</tr>
+<tr>
+<td>F — Tasks</td>
+<td><a href="../domains/retail_returns/tasks.json"><code>tasks.json</code></a> + <a href="../domains/retail_returns/tasks_design.md"><code>tasks_design.md</code></a></td>
+<td>drafted (6 tasks)</td>
+</tr>
+</tbody>
+</table>
+<p>The methodology&rsquo;s success criterion is: by the time all six layers are
+populated for retail_returns, we should be able to (a) verify a hand-authored
+task, (b) solve a task from spec alone, (c) generate a new task with proven
+uniqueness, and (d) hand-write the rendered NL with the consistency check
+catching at least one mismatch we would have missed by eye.</p>
+<h3 id="121-airline-retrofit-in-progress">12.1 Airline retrofit (in progress)</h3>
+<p>Beyond retail_returns, the methodology is being applied to the existing
+tau2-bench airline domain as the <em>unforgiving validation</em> — does it
+generalize to a corpus that wasn&rsquo;t designed with the methodology in
+mind? Status by layer:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>File</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A — Ontology</td>
+<td><a href="../domains/airline/ontology.md"><code>ontology.md</code></a></td>
+<td>drafted</td>
+</tr>
+<tr>
+<td>B — World rules</td>
+<td><a href="../domains/airline/rules.md"><code>rules.md</code></a></td>
+<td>drafted (cancellation slice only)</td>
+</tr>
+<tr>
+<td>C — Actions</td>
+<td><a href="../domains/airline/actions.md"><code>actions.md</code></a></td>
+<td>drafted (cancellation slice only)</td>
+</tr>
+<tr>
+<td>D — Agent contract</td>
+<td><a href="../domains/airline/agent_contract.md"><code>agent_contract.md</code></a></td>
+<td>drafted (cancellation slice only)</td>
+</tr>
+<tr>
+<td>E — <code>D₀</code></td>
+<td><a href="../domains/airline/db.json"><code>db.json</code></a></td>
+<td>drafted (synthetic, 2 reservations)</td>
+</tr>
+<tr>
+<td>F — Tasks</td>
+<td><a href="../domains/airline/tasks.json"><code>tasks.json</code></a></td>
+<td>drafted (2 tasks: 1 refusal, 1 success)</td>
+</tr>
+<tr>
+<td>Verifier</td>
+<td><a href="../tools/clingo_verify_airline.py"><code>tools/clingo_verify_airline.py</code></a></td>
+<td>working — 2/2 tasks pass</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Methodology milestone (2026-05-29):</strong> first end-to-end airline retrofit
+verification. Both tasks pass on first run; Clingo executes the airline
+Layer B rules correctly. The 24-hour cancellation window is mechanically
+respected (<code>AIRLINE-T-001</code> refused at 28h-old; <code>AIRLINE-T-002</code> approved at
+6h-old). The methodology generalizes from retail_returns to airline
+without requiring changes to the framework itself — only domain-specific
+encoding adaptations (composite ids, positional passengers,
+<code>insurance_covers</code> external predicate).</p>
+<p><strong>Methodology milestone (2026-05-29, later):</strong> first cross-validation
+against upstream tau2-bench tasks. Three upstream cancellation tasks
+(authored by humans against the prose <code>policy.md</code> without reference to
+our methodology) verified end-to-end via
+<a href="../tools/cross_validate_airline.py"><code>tools/cross_validate_airline.py</code></a>.
+Schema adapter pulls subset of upstream <code>db.json</code>, translates to our
+ontology format, runs our Clingo verifier; verdict compared against the
+upstream task&rsquo;s expected outcome.</p>
+<p>Result: <strong>8/8 agreement</strong> (extended from initial 3/3).</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>User</th>
+<th>Reservation</th>
+<th>Branch tested</th>
+<th>Expected</th>
+<th>Got</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Emma Kim</td>
+<td>EHGLP3 (gold, basic_economy, no ins, ~11d)</td>
+<td>all-grounds-fail</td>
+<td>policy_refused</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Raj Sanchez</td>
+<td>Q69X3R (silver, economy, no ins, ~29h)</td>
+<td>outside 24h window</td>
+<td>policy_refused</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>14</td>
+<td>Mohamed Silva</td>
+<td>K1NW8N (basic_economy, no ins, <strong>~22.9h</strong>)</td>
+<td>recent_booking at boundary</td>
+<td>unique</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>19</td>
+<td>Olivia Gonzalez</td>
+<td>Z7GOZK (basic_economy, <strong>ins=yes</strong>, ~43h)</td>
+<td>insurance + health covered</td>
+<td>unique</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>26</td>
+<td>Amelia Sanchez</td>
+<td>3FRNFB (basic_economy, no ins, ~9d)</td>
+<td>all-grounds-fail</td>
+<td>policy_refused</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>29</td>
+<td>Raj Brown</td>
+<td>VA5SGQ (economy, <strong>ins=yes</strong>, ~7d)</td>
+<td>insurance + health covered</td>
+<td>unique</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>47</td>
+<td>Sophia Silva</td>
+<td>H8Q05L (basic_economy, <strong>ins=yes</strong>, reason=birthday)</td>
+<td>insurance branch ≠ uncovered reason</td>
+<td>policy_refused</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>49</td>
+<td>Anya Garcia</td>
+<td>3RK2T9 (basic_economy, <strong>ins=no</strong>, user <em>lies</em> about it)</td>
+<td>ground truth vs customer claim</td>
+<td>policy_refused</td>
+<td>✓</td>
+</tr>
+</tbody>
+</table>
+<p>The tricky cases (47, 49) are where the methodology earns its keep:
+- <strong>47</strong> has insurance=yes but the reason isn&rsquo;t health/weather. The
+  external <code>insurance_covers/1</code> predicate is correctly false because
+  the task&rsquo;s <code>intent.insurance_covers</code> is false. The verifier
+  refuses despite insurance being purchased.
+- <strong>49</strong> has insurance=no but the user <em>claims</em> she purchased it.
+  The verifier sees ground truth (D₀&rsquo;s <code>has_travel_insurance</code> = false)
+  and refuses regardless of the customer&rsquo;s claim. The Q1 resolution —
+  <code>insurance_covers/1</code> is fed from the verifier&rsquo;s structured input,
+  not derived from a customer-supplied closed enum — holds against
+  adversarial input.</p>
+<p>Solve also working: the airline verifier now produces structured D*
+diffs for successful cancellations (status active→cancelled, reason
+set, per-payment refund events for credit cards, balance increments
+for gift cards). Known v0 gap surfaced by cross-validation: refund
+totals don&rsquo;t include insurance/baggage fees (computed from segment
+prices × passengers only). e.g., VA5SGQ Solve shows $656; upstream&rsquo;s
+payment_history says $686; the $30 difference is the single-passenger
+insurance fee. Q-D-A1 single-payment simplification confirmed
+sufficient for cancellation-slice cross-validation; per-payment
+allocation and fee computation are v1.</p>
+<p>The earlier extraction draft lives at
+<a href="../domains/airline_reference/policy_logic.md"><code>../domains/airline_reference/policy_logic.md</code></a>;
+the formal Layer A is the first artifact of the retrofit proper. The
+retrofit is expected to surface methodology gaps that retail_returns
+didn&rsquo;t — multi-segment trips, payment composition cardinalities,
+cabin-uniformity constraints, and compensation rules don&rsquo;t have direct
+analogs in retail_returns and will stress the framework.</p>
+<hr />
+<h2 id="13-status-and-changelog">13. Status and changelog</h2>
+<ul>
+<li><strong>2026-05-22</strong> — initial methodology draft. Decisions locked: methodology +
+  worked example (no template); behavioral layer as vocabulary (no DSL);
+  rendering hand-written with consistency check (no generator). Worked
+  example domain: retail returns and refunds. See conversation log.</li>
+<li><strong>2026-05-26</strong> — §11 updated: &ldquo;multi-action tasks&rdquo; item moved to &ldquo;Locked
+  since v0.1&rdquo; (per actions.md §6); &ldquo;discoverability check&rdquo; reframed as a
+  known v0 gap with explicit proxies (D-CONF-5 and D-CONF-7), rather than
+  a deferred ambition. The principle stays; the v0 limitation is now in
+  the open rather than implicit.</li>
+<li><strong>2026-05-26 (later)</strong> — <strong>first verifier landed</strong>: pure-Python
+  implementation at <code>tools/verify_retail_returns.py</code>. Mechanizes all
+  25 Layer B integrity constraints and all 9 Layer C actions; checks
+  the runtime-checkable Layer D rules D-CONF-5 and D-CONF-7. For each
+  task: applies the gold action witness to D₀, validates preconditions
+  at each step, runs Layer B invariants on D<em>, compares D</em> to D₀ for
+  task-class consistency, and prints the diff. Result on the 6 v0
+  tasks: 6/6 pass. 5 deliberate-bug injections confirmed the verifier
+  catches ineligibility violations, class mismatches, out-of-window
+  approvals, D₀ corruption, and missing references. Pure-Python skips
+  Clingo for v0; ASP integration is deferred until generation /
+  uniqueness work needs it. Operation §5 status: <strong>Verify</strong> working
+  (with the caveats above), <strong>Solve</strong> and <strong>Generate</strong> still TODO.</li>
+</ul>
+</main>
+<footer class="footer">
+  Generated from <code>docs/methodology.md</code> via <code>tools/render_doc.py</code>.
+</footer>
+</body>
+</html>
