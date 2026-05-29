@@ -134,10 +134,30 @@ ineligible value in `tasks.json` — and re-run.
   | non_returnable_refusal | policy_noop | 0→0 |
   | wrong_initiator_refusal | policy_noop | 0→0 |
 
-  Each template accepts knobs (member_tier, days_since_fulfillment,
-  declared_condition, etc.) that produce variants. Generated tasks are
-  emitted as in-memory dicts that can be serialized to tasks.json /
-  db.json for inclusion in a benchmark corpus.
+  **CLI for benchmark authoring**:
+
+  ```sh
+  # All scenarios, default knobs.
+  uv run python tools/generate.py
+
+  # One scenario, override one knob.
+  uv run python tools/generate.py happy_path_self_return member_tier=plus
+
+  # Knob sweep — cartesian product of comma-separated values.
+  # Surfaces policy regime boundaries (in-window → out-of-window).
+  uv run python tools/generate.py --summary happy_path_self_return \
+      member_tier=regular,plus days_since_fulfillment=15,30,60,90,120
+
+  # Export each variant to a separate task.json + db.json under DIR/.
+  # Exported files match the schema of domains/retail_returns/{tasks,db}.json
+  # and round-trip through the verifier.
+  uv run python tools/generate.py --export out/ happy_path_self_return \
+      days_since_fulfillment=5,15,28,31,85
+  ```
+
+  Sweeps report "regime crossings" when variants cross a policy
+  boundary (e.g. a mutating scenario becomes policy-refused when knobs
+  push it past the return window). These are informative, not errors.
 
   Requires `uv sync` to install the `clingo` Python bindings.
   See `pyproject.toml` for the dependency.

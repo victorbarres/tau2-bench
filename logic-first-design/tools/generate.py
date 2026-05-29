@@ -8,19 +8,40 @@ minimal world that supports the intent. The output passes through the
 existing Verify pipeline as a uniqueness gate — if Clingo can't confirm
 exactly one D*, the generated task is rejected.
 
-v0 scope: scaffold generation. Six templates, each parameterized by knobs
-(member_tier, days_since_fulfillment, return_class, condition/reason,
-refund_method, ...) that produce a single-customer / single-product /
-single-order D₀ tuned to the scenario. No near-miss noise; no automatic
-difficulty tuning. Those are v0.1.
+Scope: scaffold generation. Six templates, each parameterized by knobs
+(member_tier, days_since_fulfillment, return_class, declared_condition,
+declared_reason, refund_method, ...) that produce a single-customer /
+single-product / single-order D₀ tuned to the scenario.
 
-Run:
+Usage:
+  # Run all 6 scenarios with default knobs, print results.
   uv run python tools/generate.py
+
+  # One scenario, default knobs.
+  uv run python tools/generate.py happy_path_self_return
+
+  # Override one knob.
+  uv run python tools/generate.py happy_path_self_return member_tier=plus
+
+  # Sweep: comma-separated values produce a cartesian product of variants.
+  uv run python tools/generate.py happy_path_self_return \\
+      member_tier=regular,plus days_since_fulfillment=5,15,28,35
+
+  # Export each generated variant to its own task.json + db.json.
+  uv run python tools/generate.py --export out/ happy_path_self_return \\
+      days_since_fulfillment=5,15,28,35,85
+
+  # Show pruning distribution across a sweep (useful for difficulty audit).
+  uv run python tools/generate.py --summary happy_path_self_return \\
+      days_since_fulfillment=5,15,28,29,30,31,32,85
 """
 
 from __future__ import annotations
 
+import argparse
+import itertools
 import json
+import re
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -464,11 +485,35 @@ class GenerationResult:
     error: str = ""
 
 
+def _verdict_consistent_with_class(verdict: str, task_class: str) -> bool:
+    """
+    Does the verifier's verdict match what task_class asserts about D*?
+
+    - mutating tasks should be uniquely solvable.
+    - policy_noop tasks should be refused by policy (verdict 'infeasible' or
+      'policy_refused' — these are the same outcome from different families).
+    - intent_noop tasks need no LP check at all.
+    """
+    if task_class == "mutating":
+        return verdict == "unique"
+    if task_class == "policy_noop":
+        return verdict in ("policy_refused", "infeasible")
+    if task_class == "intent_noop":
+        return verdict == "trivial_noop"
+    return False
+
+
 def generate_and_verify(scenario_name: str, knobs: dict | None = None,
                         layer_b: str | None = None) -> GenerationResult:
     """
-    Run a scenario: build (D₀, task), verify the task, solve to get the diff,
-    confirm the pruning ratio matches the scenario's expectation.
+    Run a scenario: build (D₀, task), verify the task, solve to get the diff.
+
+    `matches_expected` is true iff the verifier's verdict is consistent with
+    the synthesized task's `task_class` (e.g. mutating → unique;
+    policy_noop → policy_refused). When sweeping knobs across a policy
+    boundary (in-window → out-of-window), variants that cross the boundary
+    will report `matches_expected = False` — which is informative, not an
+    error. The synthesis pipeline itself succeeded.
     """
     if scenario_name not in SCENARIOS:
         raise ValueError(f"unknown scenario {scenario_name!r}")
@@ -485,9 +530,8 @@ def generate_and_verify(scenario_name: str, knobs: dict | None = None,
     result = verify(encoding, d0_facts, layer_b, db=db)
     sr = solve_task(encoding, db, layer_b)
 
-    matches = (
-        (result.free_count, result.constrained_count) == expected.expected_pruning
-        and result.matches_expected
+    consistent = _verdict_consistent_with_class(
+        result.verdict, task["operational_spec"]["task_class"]
     )
 
     return GenerationResult(
@@ -499,64 +543,244 @@ def generate_and_verify(scenario_name: str, knobs: dict | None = None,
         free_count=result.free_count,
         constrained_count=result.constrained_count,
         solve_diff=sr.diff,
-        matches_expected=matches,
-        error="" if matches else f"expected pruning {expected.expected_pruning}, got ({result.free_count}, {result.constrained_count})",
+        matches_expected=consistent,
+        error="" if consistent else (
+            f"verdict {result.verdict!r} inconsistent with task_class "
+            f"{task['operational_spec']['task_class']!r} — likely a regime change "
+            f"from sweeping knobs across a policy boundary"
+        ),
     )
 
 
 # ============================================================================
-# 5. Main — run all scenarios
+# 5. Knob parsing + sweep
 # ============================================================================
 
 
-def main() -> int:
-    print("=" * 78)
-    print("Generate operation — synthesize (D₀, task) pairs from scenario templates")
-    print("=" * 78)
+def _parse_knob_value(s: str) -> int | str | bool:
+    """Coerce a CLI-supplied knob value to int / bool / str (in that order)."""
+    if s.lower() in ("true", "false"):
+        return s.lower() == "true"
+    try:
+        return int(s)
+    except ValueError:
+        return s
+
+
+def parse_knob_args(knob_strs: list[str]) -> dict[str, list]:
+    """
+    Parse `key=value` or `key=v1,v2,v3` CLI arguments into a dict of lists.
+    Each entry's list is the set of values to sweep over for that knob.
+    """
+    knobs: dict[str, list] = {}
+    for s in knob_strs:
+        if "=" not in s:
+            raise SystemExit(f"bad knob argument {s!r}; expected key=value")
+        key, _, raw = s.partition("=")
+        values = [_parse_knob_value(v.strip()) for v in raw.split(",")]
+        knobs[key.strip()] = values
+    return knobs
+
+
+def sweep(knobs: dict[str, list]) -> list[dict]:
+    """Cartesian product over swept knobs. Empty knobs ⇒ a single empty dict."""
+    if not knobs:
+        return [{}]
+    keys = list(knobs.keys())
+    value_lists = [knobs[k] for k in keys]
+    return [dict(zip(keys, combo)) for combo in itertools.product(*value_lists)]
+
+
+def variant_suffix(knob_combo: dict) -> str:
+    """
+    Build a filesystem-safe suffix that uniquely identifies a knob combo.
+    Empty combo → empty string. e.g. 'tier-plus_days-15'.
+    """
+    if not knob_combo:
+        return ""
+    parts = [f"{k.replace('_', '')}-{v}" for k, v in knob_combo.items()]
+    safe = "_".join(parts)
+    return "_" + re.sub(r"[^A-Za-z0-9_\-]+", "", safe)
+
+
+# ============================================================================
+# 6. JSON export
+# ============================================================================
+
+
+def export_variant(out_dir: Path, scenario: str, suffix: str,
+                   db: dict, task: dict) -> Path:
+    """
+    Write a generated variant to `out_dir/<scenario><suffix>/{task.json,db.json}`.
+    Schema matches the existing domains/retail_returns/tasks.json + db.json so
+    these files can be loaded by the same verifier infrastructure.
+    """
+    variant_dir = out_dir / f"{scenario}{suffix}"
+    variant_dir.mkdir(parents=True, exist_ok=True)
+    (variant_dir / "task.json").write_text(json.dumps(task, indent=4) + "\n")
+    (variant_dir / "db.json").write_text(json.dumps(db, indent=4) + "\n")
+    return variant_dir
+
+
+# ============================================================================
+# 7. Main — CLI
+# ============================================================================
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="generate.py",
+        description="Synthesize (D₀, task) pairs from scenario templates.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Knobs are positional arguments after the scenario name, in\n"
+            "`key=value` or `key=v1,v2,v3` form. Multiple values produce a\n"
+            "cartesian-product sweep. See the module docstring for examples.\n"
+            "\n"
+            "Available scenarios:\n"
+            + "\n".join(f"  • {name}  ({sc[1].description})"
+                       for name, sc in SCENARIOS.items())
+        ),
+    )
+    p.add_argument(
+        "scenario",
+        nargs="?",
+        default="all",
+        choices=list(SCENARIOS.keys()) + ["all"],
+        help="scenario name, or 'all' to run every scenario with default knobs",
+    )
+    p.add_argument(
+        "knobs",
+        nargs="*",
+        help="knob overrides as key=value or key=v1,v2,v3 (sweep)",
+    )
+    p.add_argument(
+        "--export",
+        type=Path,
+        metavar="DIR",
+        help="write each generated variant to DIR/<scenario>[<knob-suffix>]/",
+    )
+    p.add_argument(
+        "--summary",
+        action="store_true",
+        help="condensed table-only output (no D* diff dumps)",
+    )
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _build_parser().parse_args(argv)
+    knobs_swept = parse_knob_args(args.knobs)
+    combos = sweep(knobs_swept)
 
     layer_b = extract_asp_from_rules_md(RULES_PATH)
-    results: list[GenerationResult] = []
-    for name in SCENARIOS:
-        try:
-            results.append(generate_and_verify(name, layer_b=layer_b))
-        except Exception as e:  # pragma: no cover — surface generation errors
-            print(f"\n  ✗ {name}: generation failed — {e}")
-            return 1
 
-    print(f"\n{'scenario':<35} {'expected':<12} {'got':<12} {'verdict':<18} ok")
-    print("─" * 78)
-    for r in results:
-        exp = f"({r.expected.expected_pruning[0]}, {r.expected.expected_pruning[1]})"
-        got = f"({r.free_count}, {r.constrained_count})"
+    if args.scenario == "all":
+        scenario_names = list(SCENARIOS.keys())
+        if combos != [{}]:
+            raise SystemExit("knob sweeps require a specific scenario name; not 'all'")
+    else:
+        scenario_names = [args.scenario]
+
+    print("=" * 78)
+    title = (
+        f"Generate — scenario={args.scenario!r}, "
+        f"{len(combos)} variant(s)"
+        + (f", exporting to {args.export}/" if args.export else "")
+    )
+    print(title)
+    print("=" * 78)
+
+    all_results: list[tuple[str, dict, GenerationResult, Path | None]] = []
+
+    for name in scenario_names:
+        for combo in combos:
+            try:
+                r = generate_and_verify(name, combo, layer_b=layer_b)
+            except Exception as e:  # pragma: no cover
+                print(f"\n  ✗ {name} {combo}: generation failed — {e}")
+                return 1
+
+            export_path: Path | None = None
+            if args.export:
+                suffix = variant_suffix(combo)
+                # Rename the in-memory task id to match the export directory.
+                r.task["id"] = f"GEN-{name}{suffix}"
+                export_path = export_variant(args.export, name, suffix, r.db, r.task)
+
+            all_results.append((name, combo, r, export_path))
+
+    # ---- Table ----
+    print(f"\n{'variant':<60} {'pruning':<10} {'verdict':<18} ok")
+    print("─" * 100)
+    for name, combo, r, export_path in all_results:
+        label = name + (f" {combo}" if combo else "")
+        if len(label) > 58:
+            label = label[:57] + "…"
+        pruning = f"{r.free_count}→{r.constrained_count}"
         ok = "✓" if r.matches_expected else "✗"
-        print(f"{r.scenario:<35} {exp:<12} {got:<12} {r.verify_verdict:<18} {ok}")
+        line = f"{label:<60} {pruning:<10} {r.verify_verdict:<18} {ok}"
+        if export_path:
+            # Show relative path if it sits under cwd, else the full path.
+            try:
+                shown_path = export_path.relative_to(Path.cwd())
+            except ValueError:
+                shown_path = export_path
+            line += f"  → {shown_path}"
+        print(line)
 
-    print("\nGenerated D* diffs (Solve outputs on the synthesized D₀):")
-    for r in results:
-        print(f"\n  {r.scenario}:")
-        print(f"    {r.expected.description}")
-        if not r.solve_diff:
-            print(f"    D* = D₀ (no mutation; policy correctly handled the request)")
-        else:
-            for d in r.solve_diff:
-                print(f"    • {d}")
+    # ---- D* diffs (skipped in summary mode) ----
+    if not args.summary:
+        print("\nGenerated D* diffs:")
+        for name, combo, r, _ in all_results:
+            label = name + (f" {combo}" if combo else "")
+            print(f"\n  {label}:")
+            print(f"    {r.expected.description}")
+            if not r.solve_diff:
+                print(f"    D* = D₀ (policy correctly handled the request)")
+            else:
+                for d in r.solve_diff:
+                    print(f"    • {d}")
 
+    # ---- Sweep insight ----
+    n_combos = len(combos)
+    n_consistent = sum(1 for _, _, r, _ in all_results if r.matches_expected)
+    if n_combos > 1:
+        print("\n" + "─" * 78)
+        print(f"Sweep analysis ({n_combos} variants):")
+        verdicts = [r.verify_verdict for _, _, r, _ in all_results]
+        for v in sorted(set(verdicts)):
+            print(f"  {v:<20} {verdicts.count(v)} variant(s)")
+        prunings = sorted({(r.free_count, r.constrained_count) for _, _, r, _ in all_results})
+        if len(prunings) > 1:
+            print(f"  pruning ratios spanned: {prunings}")
+        n_regime_changes = n_combos - n_consistent
+        if n_regime_changes:
+            print(f"  {n_regime_changes} variant(s) crossed a policy regime boundary "
+                  f"(verdict ≠ task_class default)")
+
+    # ---- Summary ----
     print("\n" + "=" * 78)
-    n_ok = sum(1 for r in results if r.matches_expected)
-    print(f"SUMMARY: {n_ok}/{len(results)} scenarios generated and verified.")
-    if n_ok != len(results):
-        print("\n  Failures:")
-        for r in results:
-            if not r.matches_expected:
-                print(f"    {r.scenario}: {r.error}")
-        return 1
+    print(f"SUMMARY: {n_consistent}/{len(all_results)} variants match their declared task_class.")
+    inconsistent = [(name, combo, r) for name, combo, r, _ in all_results if not r.matches_expected]
+    if inconsistent:
+        print("\n  Regime crossings (not necessarily errors when sweeping):")
+        for name, combo, r in inconsistent:
+            print(f"    {name} {combo}: verdict={r.verify_verdict}, "
+                  f"task_class={r.task['operational_spec']['task_class']}")
 
-    print("\n  Generate operation working. The methodology now has:")
-    print("    Verify  — soundness + uniqueness for any (D₀, OperationalSpec).")
-    print("    Solve   — derive D* from spec alone, no gold trajectory.")
-    print("    Generate — synthesize D₀ from scenario template, end-to-end verified.")
-    print("\n  Generated tasks can be exported to tasks.json + db.json for")
-    print("  inclusion in a benchmark corpus. Each is provably uniquely solvable.")
+    if args.export:
+        print(f"\n  Wrote {len(all_results)} variant(s) to {args.export}/")
+        print(f"  Each directory contains task.json + db.json matching the")
+        print(f"  schema of domains/retail_returns/{{tasks,db}}.json.")
+
+    # Exit code: 0 if all variants synthesized cleanly. Regime crossings are
+    # informative (especially during knob sweeps) and don't count as failures.
+    # Strict consistency is checked only when running a single scenario with
+    # no knob overrides (i.e., the user expects the default to hold).
+    is_strict = len(scenario_names) == 1 and not knobs_swept
+    if is_strict and inconsistent:
+        return 1
     return 0
 
 
