@@ -6,7 +6,7 @@ state, and tasks from it — rather than authoring those artifacts independently
 and reconciling them by hand.
 
 This document is the **methodology**. The accompanying **worked example** lives
-under [`data/tau2/domains/retail_returns/`](../data/tau2/domains/retail_returns/)
+under [`domains/retail_returns/`](../domains/retail_returns/)
 and instantiates each layer described here.
 
 This is **not** a fill-in-the-blank template. Templates encode commitments
@@ -337,7 +337,7 @@ resolved during the worked example and folded back into v2 of this doc.
   (what facts the agent has read so far in the conversation), which is a
   richer formalism than constraints over `D*`. v0 falls back to two coarser
   proxies: (a) Layer D rules (D-CONF-5 and D-CONF-7 in
-  [`agent_contract.md`](../data/tau2/domains/retail_returns/agent_contract.md))
+  [`agent_contract.md`](../domains/retail_returns/agent_contract.md))
   require the agent to have called `get_order_details` and
   `get_customer_details` before mutating, and (b) a hand-audit at
   task-authoring time. Full discoverability is a v1 artifact. The principle
@@ -346,24 +346,24 @@ resolved during the worked example and folded back into v2 of this doc.
 
 **Locked since v0.1 (no longer open):**
 - ~~Multi-action tasks~~ — locked to "at most one mutating action per task"
-  in [`actions.md`](../data/tau2/domains/retail_returns/actions.md) §6.
+  in [`actions.md`](../domains/retail_returns/actions.md) §6.
 
 ---
 
 ## 12. Worked example
 
-See [`data/tau2/domains/retail_returns/`](../data/tau2/domains/retail_returns/)
-for the worked-example domain. The current state of the worked example, by
+See [`domains/retail_returns/`](../domains/retail_returns/) for the
+worked-example domain. The current state of the worked example, by
 layer:
 
 | Layer | File | Status |
 |---|---|---|
-| A — Ontology | [`ontology.md`](../data/tau2/domains/retail_returns/ontology.md) | drafted |
-| B — World rules | [`rules.md`](../data/tau2/domains/retail_returns/rules.md) | drafted |
-| C — Actions | [`actions.md`](../data/tau2/domains/retail_returns/actions.md) | drafted |
-| D — Agent contract | [`agent_contract.md`](../data/tau2/domains/retail_returns/agent_contract.md) | drafted |
-| E — `D₀` | [`db.json`](../data/tau2/domains/retail_returns/db.json) + [`db_design.md`](../data/tau2/domains/retail_returns/db_design.md) | drafted |
-| F — Tasks | [`tasks.json`](../data/tau2/domains/retail_returns/tasks.json) + [`tasks_design.md`](../data/tau2/domains/retail_returns/tasks_design.md) | drafted (6 tasks) |
+| A — Ontology | [`ontology.md`](../domains/retail_returns/ontology.md) | drafted |
+| B — World rules | [`rules.md`](../domains/retail_returns/rules.md) | drafted |
+| C — Actions | [`actions.md`](../domains/retail_returns/actions.md) | drafted |
+| D — Agent contract | [`agent_contract.md`](../domains/retail_returns/agent_contract.md) | drafted |
+| E — `D₀` | [`db.json`](../domains/retail_returns/db.json) + [`db_design.md`](../domains/retail_returns/db_design.md) | drafted |
+| F — Tasks | [`tasks.json`](../domains/retail_returns/tasks.json) + [`tasks_design.md`](../domains/retail_returns/tasks_design.md) | drafted (6 tasks) |
 
 The methodology's success criterion is: by the time all six layers are
 populated for retail_returns, we should be able to (a) verify a hand-authored
@@ -385,7 +385,7 @@ catching at least one mismatch we would have missed by eye.
   a deferred ambition. The principle stays; the v0 limitation is now in
   the open rather than implicit.
 - **2026-05-26 (later)** — **first verifier landed**: pure-Python
-  implementation at `scripts/verify_retail_returns.py`. Mechanizes all
+  implementation at `tools/verify_retail_returns.py`. Mechanizes all
   25 Layer B integrity constraints and all 9 Layer C actions; checks
   the runtime-checkable Layer D rules D-CONF-5 and D-CONF-7. For each
   task: applies the gold action witness to D₀, validates preconditions

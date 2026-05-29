@@ -1,7 +1,7 @@
 # Retail Returns & Refunds — Actions (Layer C)
 
 This is **Layer C** of the logic-first design described in
-[`docs/logic_first_design.md`](../../../../docs/logic_first_design.md). It
+[`docs/methodology.md`](../../docs/methodology.md). It
 declares the **action surface**: the closed set of operations the agent can
 invoke, each as a transition predicate.
 

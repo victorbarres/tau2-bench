@@ -1,0 +1,131 @@
+# Logic-First Domain Design
+
+A methodology for designing benchmark domains — for conversational
+agents, policy-grounded tools, or similar — by starting from a formal
+logical specification and projecting natural-language prose, code,
+database state, and benchmark tasks from it, rather than authoring
+those artifacts independently and reconciling them by hand.
+
+This package is **self-contained**. It includes the methodology, a
+fully worked example (retail returns & refunds), a reference
+extraction of an existing prose policy (the tau2-bench airline
+domain), and a working v0 verifier.
+
+```
+logic-first-design/
+  README.md                       ← you are here
+  docs/
+    methodology.md                ← the methodology, 5 principles + 6 layers
+  domains/
+    retail_returns/               ← the worked example, authored end-to-end
+      ontology.md                 ← Layer A: sorts, attributes, enumerations
+      rules.md                    ← Layer B: integrity constraints + derivations (ASP)
+      actions.md                  ← Layer C: transition predicates (9 actions)
+      agent_contract.md           ← Layer D: deontic layer (38 rules)
+      db.json                     ← Layer E: baseline D₀
+      db_design.md                ← Layer E: rationale + self-verification
+      tasks.json                  ← Layer F: 6 hand-authored benchmark tasks
+      tasks_design.md             ← Layer F: per-task spec + uniqueness arguments
+    airline_reference/
+      policy_logic.md             ← reference: same methodology applied retroactively
+                                    to tau2-bench's airline policy.md
+  tools/
+    verify_retail_returns.py      ← v0 verifier (Python, no Clingo dependency)
+```
+
+## Reading order
+
+1. **[docs/methodology.md](docs/methodology.md)** — the methodology itself.
+   Five principles, the A→F layer dependency map, the task model
+   (`OperationalSpec` + `BehavioralSpec`), the three operations
+   (Verify / Solve / Generate), known gaps. ~400 lines.
+
+2. **[domains/retail_returns/ontology.md](domains/retail_returns/ontology.md)**
+   onward, in alphabetical order matching Layer A → F. Each layer
+   builds on the previous one only; cross-layer references are
+   explicit. The design docs (`db_design.md`, `tasks_design.md`)
+   explain the rationale; the data files (`db.json`, `tasks.json`)
+   are the canonical artifacts.
+
+3. **[tools/verify_retail_returns.py](tools/verify_retail_returns.py)** —
+   the working v0 verifier. Read after the layer files; it makes the
+   most sense once you've seen what it's verifying.
+
+4. **[domains/airline_reference/policy_logic.md](domains/airline_reference/policy_logic.md)** —
+   shows what the methodology's extraction step looks like when
+   applied *retroactively* to an existing prose policy, as opposed
+   to authored forward. Useful for understanding the retrofit case.
+
+## Running the verifier
+
+Requires only Python 3.10+ (uses standard library only — `json`, `pathlib`,
+`datetime`, `dataclasses`). No external dependencies.
+
+```sh
+python tools/verify_retail_returns.py
+```
+
+Expected output: `D₀` baseline passes all 25 Layer B integrity constraints,
+then each of the 6 tasks in `tasks.json` is verified end-to-end (gold
+trajectory applied to `D₀`, preconditions checked, Layer B re-checked on
+`D*`, diff printed, task-class consistency confirmed). Final line:
+`SUMMARY: 6/6 passed.`
+
+To see that the verifier actually catches bugs (rather than rubber-
+stamping), inject one — e.g., change a task's `refund_method` to an
+ineligible value in `tasks.json` — and re-run.
+
+## What's working, what's not
+
+**Working:**
+- The methodology, written down end-to-end.
+- A worked example through Layers A–F covering a non-trivial domain
+  (6 sorts, ~25 integrity constraints, 11 derivations, 9 actions,
+  38 deontic rules, 14 orders, 6 tasks).
+- A v0 verifier that mechanizes all Layer B and Layer C and the
+  runtime-checkable subset of Layer D, and passes 6/6 tasks while
+  catching 5/5 deliberate bug injections.
+
+**Not yet working:**
+- **Solve** operation (derive D* from `(D₀, OperationalSpec)` alone,
+  without a gold trajectory).
+- **Generate** operation (synthesize D₀ such that a given
+  OperationalSpec template has exactly one solution).
+- **Clingo integration**. The ASP code in `rules.md` is intended for
+  Clingo but has not been executed; the v0 verifier reimplements the
+  rules in Python. ASP integration matters for uniqueness search; the
+  verifier compares against a single hand-written gold D*.
+- **Structural `c_hard` checking**. The structured `c_hard` constraints
+  in `tasks.json` are currently documentation; the verifier checks
+  the diff against the gold trajectory only.
+- **LLM-graded Layer D rules**. The `[prompt]`-tagged rules in
+  `agent_contract.md` need a judge model to score, not a static checker.
+- **Renderer** (spec → NL prose). The methodology commits that rendering
+  *is possible* from the spec; v0 does it by hand and checks for
+  consistency.
+
+See [docs/methodology.md §9](docs/methodology.md#9-what-this-methodology-does-not-solve)
+for the full gap list.
+
+## What this is for
+
+This methodology is intended for situations where:
+
+- You're building a benchmark domain for an agent (conversational,
+  tool-using, or policy-grounded), and you want task soundness and
+  task uniqueness to be *guaranteed* rather than tuned by hand.
+- You're designing a policy that needs to be coherent across multiple
+  representations (prose, code, tests, runtime checks) and you want
+  to avoid the multi-source-of-truth drift problem.
+- You're trying to formalize an existing policy and want a structured
+  extraction step before committing to an encoding (the
+  `airline_reference/` example shows what that looks like).
+
+It is *not* a production policy engine, a verification system for
+real-world legal/regulatory text, or a Clingo wrapper. It is a
+discipline for structuring how policy artifacts depend on one another
+and a worked demonstration that the discipline pays off.
+
+## License
+
+(To be set by the project owner before shipping.)

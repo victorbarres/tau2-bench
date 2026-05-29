@@ -1,7 +1,7 @@
 # Retail Returns & Refunds — World Rules (Layer B)
 
 This is **Layer B** of the logic-first design described in
-[`docs/logic_first_design.md`](../../../../docs/logic_first_design.md). It
+[`docs/methodology.md`](../../docs/methodology.md). It
 declares:
 
 - **Integrity constraints** — properties any valid DB state must satisfy.

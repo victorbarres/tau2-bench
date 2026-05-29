@@ -33,8 +33,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DOMAIN_DIR = REPO_ROOT / "data" / "tau2" / "domains" / "retail_returns"
+PACKAGE_ROOT = Path(__file__).resolve().parent.parent
+DOMAIN_DIR = PACKAGE_ROOT / "domains" / "retail_returns"
 DB_PATH = DOMAIN_DIR / "db.json"
 TASKS_PATH = DOMAIN_DIR / "tasks.json"
 

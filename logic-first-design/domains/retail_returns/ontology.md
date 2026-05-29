@@ -1,7 +1,7 @@
 # Retail Returns & Refunds — Ontology (Layer A)
 
 This is **Layer A** of the logic-first design described in
-[`docs/logic_first_design.md`](../../../../docs/logic_first_design.md). It
+[`docs/methodology.md`](../../docs/methodology.md). It
 declares the sorts (entity types), their attributes, the closed enumerations,
 and the names of the derived predicates that downstream layers will define.
 

@@ -1,7 +1,7 @@
 # Retail Returns & Refunds — Agent Contract (Layer D)
 
 This is **Layer D** of the logic-first design described in
-[`docs/logic_first_design.md`](../../../../docs/logic_first_design.md). It
+[`docs/methodology.md`](../../docs/methodology.md). It
 declares the **deontic layer**: what the agent must, may, must not, and may
 transfer-instead-of-act under various conditions.
 

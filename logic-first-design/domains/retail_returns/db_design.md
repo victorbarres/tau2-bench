@@ -1,7 +1,7 @@
 # Retail Returns & Refunds — World Instantiation (Layer E)
 
 This is **Layer E** of the logic-first design described in
-[`docs/logic_first_design.md`](../../../../docs/logic_first_design.md). It
+[`docs/methodology.md`](../../docs/methodology.md). It
 documents the **baseline database state `D₀`** for the retail_returns
 worked example. The actual data lives in [`db.json`](db.json); this
 document explains the design choices.

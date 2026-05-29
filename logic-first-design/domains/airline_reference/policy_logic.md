@@ -1,13 +1,22 @@
 # Airline Policy — Logical Structure (extraction for ASP)
 
-This document is the **natural-language extraction layer** for the airline policy
-defined in [policy.md](policy.md). Its purpose is to enumerate, in plain English,
-every concept, instance, rule, and constraint that the policy implies, in a form
+This document is the **natural-language extraction layer** for the airline
+policy that ships with tau2-bench (`data/tau2/domains/airline/policy.md` in
+the upstream repo). Its purpose is to enumerate, in plain English, every
+concept, instance, rule, and constraint that the policy implies, in a form
 that maps cleanly onto an Answer Set Programming (Clingo) encoding.
 
-It does **not** introduce any new policy: every clause below either restates
-something in `policy.md` or makes an interpretive choice that is flagged in the
-"Open Questions / Ambiguities" section at the end.
+Bundled here as a **reference** — a worked example of what the
+logic-first methodology's Layer A/B extraction looks like when applied
+*retroactively* to an existing prose policy (as opposed to authored
+forward, like [`../retail_returns/`](../retail_returns/) is). The
+upstream `policy.md` is not included in this package; clone tau2-bench
+to see it.
+
+It does **not** introduce any new policy: every clause below either
+restates something in the upstream airline policy or makes an
+interpretive choice that is flagged in the "Open Questions /
+Ambiguities" section at the end.
 
 The target downstream artifact is a Clingo program in which:
 - **Sorts** become typed constants / domain predicates.

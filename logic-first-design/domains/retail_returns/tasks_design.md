@@ -1,7 +1,7 @@
 # Retail Returns & Refunds — Tasks (Layer F)
 
 This is **Layer F** of the logic-first design described in
-[`docs/logic_first_design.md`](../../../../docs/logic_first_design.md). It
+[`docs/methodology.md`](../../docs/methodology.md). It
 declares the **benchmark task set** for the retail_returns worked example.
 The actual data lives in [`tasks.json`](tasks.json); this document explains
 the design choices.
