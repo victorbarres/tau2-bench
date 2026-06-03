@@ -36,3 +36,10 @@ For intent_noop: one thing that we are missing in tau-bench is the fact that som
 
 
 I think multi-turn world dynamics is something we should try and include at some point. I think TIME is a big under-studied aspect in benchmarking.
+
+
+
+
+commit f3928bc237ae9cf04ea5d6e9a970ae7f3b5fb350 
+
+
