@@ -1,9 +1,11 @@
 # Open decisions
 
-Things we haven't settled yet. Each entry: question, my current
+Things we haven't settled yet. Each entry: question, current
 leaning + why, the trade-off. Crossed off as we pick.
 
-## 1. Name
+## Still open
+
+### 1. Name
 
 **Question**: what do we call the runnable benchmark?
 
@@ -15,7 +17,7 @@ package).
 Naming is reversible cheaply; can punt until we're closer to a
 public ship.
 
-## 2. Repository structure
+### 2. Repository structure
 
 **Question**: stay under `tau2-bench/logic-first-design/`, rename
 in place, or carve out into a new top-level repository?
@@ -23,120 +25,102 @@ in place, or carve out into a new top-level repository?
 **Current leaning**: rename in place to `logic-first-bench/` for
 now. Keep parent `tau2-bench/` repo as the umbrella while we
 prototype. Carve out into its own repo when we're ready to ship
-publicly — at that point the tau-bench-coupling story is "we
-cross-validated against it once; we don't depend on it."
+publicly.
 
 **Trade-off**: separate repo would force the no-coupling discipline
 sooner; in-place is faster and we already have the cross-validation
 proof.
 
-## 3. Project layout inside the benchmark dir
+### 3. Project layout inside the benchmark dir
 
 **Question**: how do we organize Python code?
 
 ```
-Option A (packages/ subdirs):
-  packages/bench_core/         shared: World, solve, grader
-  packages/bench_server/       FastAPI app
-  packages/bench_mcp/          MCP server base + per-domain modules
-  packages/bench_agents/       reference policy agents
-
-Option B (flatter):
-  bench/core/, bench/server/, bench/mcp/, bench/agents/
-  (single src/bench package, submodules)
-
-Option C (no packages, just dirs):
-  server/, mcp/, agents/  alongside existing tools/
+Option A: packages/{bench_core,bench_server,bench_mcp,bench_agents}/
+Option B: src/bench/{core,server,mcp,agents}/  (single package)
+Option C: top-level dirs (server/, mcp/, agents/, ...)
 ```
 
 **Current leaning**: Option B. Single `bench/` package with clear
 submodules. Less ceremony than packages/, more structure than
 loose dirs.
 
-## 4. MCP server topology
+### 4. MCP server topology
 
 **Question**: one MCP server per domain (`library_server`,
 `retail_server`, `airline_server`), or one server with a `--domain`
 argument?
 
 **Current leaning**: **one server with `--domain`**. Less code
-duplication. Domain-specific tools registered conditionally based
-on the loaded domain. Spawned as `python -m bench.mcp --domain
-library --task-id LIB-T-001 ...`.
+duplication. Domain-specific tools registered conditionally.
 
 **Trade-off**: per-domain would be cleaner for eventual Harbor
-packaging (one Docker image per domain). One-with-arg is fewer
-moving parts now; refactor to per-domain when we package for
-distribution.
+packaging (one image per domain). One-with-arg is fewer moving
+parts now; refactor when we package for distribution.
 
-## 5. Reference policy agent
-
-**Question**: which agents do we ship as reference clients?
-
-**Current leaning**: **Anthropic SDK only for v0**. It has the
-cleanest native MCP integration. Add a litellm variant in v0.1 for
-multi-provider coverage (OpenAI, DeepSeek, etc.).
-
-**Trade-off**: Anthropic-only means OpenAI/etc. evaluators can't
-run out of the box until v0.1. But shipping two agents in v0 means
-debugging two MCP shims simultaneously — more friction for less
-v0 signal.
-
-## 6. Run-state persistence
+### 5. Run-state persistence
 
 **Question**: do active runs survive a server restart, or die with
 the process?
 
-**Current leaning**: **memory-only for v0**. Active runs die with
+**Current leaning**: **memory-only for v0.5**. Active runs die with
 the server. Completed runs persist (SQLite + JSONL).
 
 **Trade-off**: PID-tracking + reattach on restart is doable but
-fiddly and not load-bearing for v0. Add it when we hit the first
-"a run was lost" frustration.
+fiddly. Add it when we hit the first "a run was lost" frustration.
 
-## 7. Telemetry: OTEL now or later
-
-**Question**: do we instrument with OpenTelemetry GenAI spans in
-v0, or wait until v0.5?
-
-**Current leaning**: **wait**. The UI shows the trajectory live
-from our JSONL stream; OTEL would be duplicate work for v0. Wire
-OTEL in v0.5 when we want trace inspection in Phoenix/Langfuse
-(per-token replay, latency attribution, cost analytics across runs).
-
-**Trade-off**: instrumenting later is slightly more refactoring than
-instrumenting from the start. Worth it: we lock in our event
-schema first, then map to OTEL.
-
-## 8. UI: route library or URL-based switching?
+### 6. UI: route library or URL-based switching?
 
 **Question**: react-router or hand-rolled URL-based view switching
 (matches `web/leaderboard`)?
 
 **Current leaning**: **hand-rolled, like the leaderboard**. The
 page set is small (~7 routes); a router library is overkill and
-we get consistency with the existing leaderboard code.
+we get consistency with existing leaderboard code.
 
-## 9. Storage: SQLite or just JSONL
+### 7. ASP query panel: derivation chain display
 
-**Question**: do we need SQLite at all, or are flat JSONL files
-enough?
+**Question**: when an ASP query returns derivable, do we show just
+the answer, or visualize the derivation chain (which rules fired,
+in what order)?
 
-**Current leaning**: **SQLite for run metadata, JSONL for
-trajectories**. Query patterns ("all runs of LIB-T-001 with
-haiku-4-5") want an index; JSONL alone scans badly. SQLite is
-zero-config Python-builtin.
+**Current leaning**: **show the chain**. We already display this
+in `library_verify.py`'s output; the UI rendering is essentially
+parsing Clingo's `--show` output into a tree.
 
-## 10. Headless CLI alongside the UI
+**Trade-off**: chain rendering is more frontend work but is the
+whole point of "test queries" — answer alone is less informative
+than seeing why.
 
-**Question**: do we have a CLI for headless runs (no browser
-needed), or is the UI the only way to run?
+### 8. Policy-chat panel model
 
-**Current leaning**: **both**. A `make run domain=… task=…` CLI
-that writes the same trajectory artifacts the UI consumes. Useful
-for CI, batch sweeps, and people who don't want the UI.
+**Question**: do we let the user pick the chat-mode LLM, or hardcode
+one?
 
-## 11. License
+**Current leaning**: **make it configurable, default to a small
+fast Claude (haiku-4-5)**. Chat is informal — we don't want token
+cost to discourage exploration. User can swap to a bigger model if
+they want stricter interpretation.
+
+### 9. Task-edit history surface
+
+**Question**: when editing a task creates a new id (`LIB-T-001-v2`),
+do we surface the lineage in the UI ("this is v2 of LIB-T-001") or
+treat each id as independent?
+
+**Current leaning**: **surface lineage**, with a "previous version"
+link. Comparison view across versions is useful for "did this edit
+break anything."
+
+### 10. Headless CLI scope
+
+**Question**: does the CLI cover authoring too, or only runs?
+
+**Current leaning**: **runs only for v0.5**. Authoring via CLI
+means a separate config DSL; not worth it. Edit JSON in your editor,
+run from CLI.
+
+### 11. License
 
 **Question**: when we ship publicly, what license?
 
@@ -145,16 +129,29 @@ benchmark adoption). Decide closer to ship.
 
 ---
 
-## Things explicitly NOT open
+## Decided
 
-These came up in conversation and were decided:
+These came up in conversation and have answers:
 
 - **MCP for tools** — yes
-- **User sim is LLM-driven** — yes
+- **User sim is LLM-driven (when it exists)** — yes, deferred to v0.6
 - **User sim accessed via MCP `ask_user` tool, not A2A** — yes
+- **Solo only for v0.5** — yes, no `ask_user` and no dialogue in
+  v0.5 trajectory rendering
 - **Build server + UI together** — yes
-- **Local-only for v0** — yes
+- **Jump to v0.5 (skip read-only v0.0)** — yes
+- **Local-only for v0.5** — yes
 - **A2A deferred** — yes, premature
 - **Harbor packaging deferred** — yes, when public
 - **Inspect AI adapter** — optional, not on v0 critical path
 - **No tau-bench dependencies** — non-negotiable
+- **Test query panel has two modes: ASP and LLM chat** — yes
+- **LLM chat is read-only Q&A in v0.5** — yes, no tool-invocation
+  from chat panel
+- **Authoring scope: tasks (Layer F) only for v0.5** — yes
+- **Editing a task creates a new id** — yes, preserves run history
+- **Reference agent: Anthropic SDK only for v0.5** — yes, litellm
+  later
+- **Telemetry: structured JSONL + SQLite for v0.5, OTEL later** — yes
+- **Storage: SQLite for run metadata, JSONL for trajectories** — yes
+- **Editor: Monaco for ASP/code, structured forms for JSON/D₀** — yes
