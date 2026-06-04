@@ -786,11 +786,11 @@ Where it doesn't fit cleanly:
 
 ## 11. Reproducibility
 
-All artifacts live under `logic-first-design/` in this repo
+All artifacts live under `nomos/` in this repo
 (`victorb/asp-test` branch). The directory is self-contained:
 
 ```
-logic-first-design/
+nomos/
 ├── README.md
 ├── pyproject.toml         # uv-managed, single dependency: clingo>=5.6
 ├── docs/
@@ -806,7 +806,7 @@ logic-first-design/
 To reproduce:
 
 ```sh
-cd logic-first-design
+cd nomos
 uv sync                                          # one-time setup
 uv run python tools/verify_retail_returns.py    # 6/6 pure-Python
 uv run python tools/clingo_verify.py            # 6/6 Clingo
@@ -839,7 +839,7 @@ For context on how this developed across the project:
   [`8dc2368`](../../commits/8dc2368)).
 - **Pure-Python verifier passes 6/6** + catches 5/5 deliberate bug
   injections ([`2bb9e20`](../../commits/2bb9e20)).
-- **Package gathered** into self-contained `logic-first-design/`
+- **Package gathered** into self-contained `nomos/`
   directory ([`3539548`](../../commits/3539548)).
 - **First Clingo verifier (F-001 prototype)**
   ([`94564bf`](../../commits/94564bf)).

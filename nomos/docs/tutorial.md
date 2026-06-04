@@ -10,7 +10,7 @@ The whole domain fits on one page. The Python verifier is ~250 lines.
 The whole tutorial takes ~15 minutes to read and 30 seconds to run.
 
 ```sh
-cd logic-first-design
+cd nomos
 uv sync                                        # one-time setup
 uv run python tools/library_verify.py          # verify all 3 tasks
 ```

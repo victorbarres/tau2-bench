@@ -7,9 +7,9 @@ package.
 
 The name foregrounds what we evaluate — policy-following with
 provable consequences — and signals that each domain is governed
-by formally-stated laws, not by hand-tuned prose. The methodology
-package itself keeps the name `logic-first-design`; *Nomos* is what
-that methodology becomes when it's made runnable.
+by formally-stated laws, not by hand-tuned prose. The underlying
+methodology is *logic-first design* (see `docs/methodology.md`);
+*Nomos* is what that methodology becomes when it's made runnable.
 
 Two halves:
 - **An IDE for designing domains** — explore the six layers, test

@@ -5,18 +5,22 @@ leaning + why, the trade-off. Crossed off as we pick.
 
 ## Still open
 
-### 1. Repository structure
+### 1. Repository extraction
 
-**Question**: stay under `tau2-bench/logic-first-design/`, rename
-in place to `nomos/`, or carve out into a new top-level repository?
+**Status**: directory renamed to `nomos/` and made self-contained.
+The remaining question: do we carve `nomos/` out into its own
+top-level repository now, or keep it under `tau2-bench/` as a
+prototype until we're closer to shipping?
 
-**Current leaning**: rename in place to `nomos/` for now. Keep
-parent `tau2-bench/` repo as the umbrella while we prototype.
-Carve out into its own repo when we're ready to ship publicly.
+**Current leaning**: keep under `tau2-bench/` for now. The dir is
+structurally ready to move (no hardcoded references in or out
+beyond `cross_validate_airline.py`'s upstream-data path, which is
+a known follow-up). Carve out when there's a reason — first
+external collaborator, or first public release.
 
-**Trade-off**: separate repo would force the no-coupling discipline
-sooner; in-place is faster and we already have the cross-validation
-proof.
+**Trade-off**: separate repo forces no-coupling discipline immediately
+and gives the brand its own front door; in-place keeps the
+prototype iteration cheap.
 
 ### 2. Project layout inside the benchmark dir
 
@@ -122,8 +126,10 @@ These came up in conversation and have answers:
 
 - **Name: Nomos** — Greek νόμος, "law/custom/governing principle".
   Foregrounds what we evaluate (policy-following with provable
-  consequences). Distinct from the methodology package, which keeps
-  the name `logic-first-design`.
+  consequences). The underlying methodology is "logic-first design"
+  (see `docs/methodology.md`); Nomos is its runnable form.
+- **Directory renamed** to `nomos/` — self-contained, ready to move
+  out of `tau2-bench/` when there's a reason.
 - **MCP for tools** — yes
 - **User sim is LLM-driven (when it exists)** — yes, deferred to v0.6
 - **User sim accessed via MCP `ask_user` tool, not A2A** — yes

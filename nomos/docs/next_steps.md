@@ -735,8 +735,8 @@ for a minimal LSP-style "verifier-as-you-save" file watcher.
 
 ### 4.4 Public repository extraction
 
-**Status**: lives inside `tau2-bench` repo as
-`logic-first-design/`. Self-contained but co-located.
+**Status**: lives inside `tau2-bench` repo as `nomos/`.
+Self-contained but co-located.
 
 **Why it matters**: if shipping as an independent artifact, a
 separate repo is cleaner. Easier to license / contribute / depend
@@ -751,7 +751,7 @@ hardcoded path to tau2-bench).
 
 **Action**:
 ```sh
-git subtree split --prefix=logic-first-design -b logic-first-design-extracted
+git subtree split --prefix=nomos -b nomos-extracted
 # then push the branch to a new repo
 ```
 

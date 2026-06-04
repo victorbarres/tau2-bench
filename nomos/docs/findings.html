@@ -1304,9 +1304,9 @@ retail_returns&rsquo; worked example was misleadingly simple.</p>
 </ul>
 <hr />
 <h2 id="11-reproducibility">11. Reproducibility</h2>
-<p>All artifacts live under <code>logic-first-design/</code> in this repo
+<p>All artifacts live under <code>nomos/</code> in this repo
 (<code>victorb/asp-test</code> branch). The directory is self-contained:</p>
-<pre><code>logic-first-design/
+<pre><code>nomos/
 ├── README.md
 ├── pyproject.toml         # uv-managed, single dependency: clingo&gt;=5.6
 ├── docs/
@@ -1319,7 +1319,7 @@ retail_returns&rsquo; worked example was misleadingly simple.</p>
 └── tools/                 # 5 Python modules
 </code></pre>
 <p>To reproduce:</p>
-<pre><code class="language-sh">cd logic-first-design
+<pre><code class="language-sh">cd nomos
 uv sync                                          # one-time setup
 uv run python tools/verify_retail_returns.py    # 6/6 pure-Python
 uv run python tools/clingo_verify.py            # 6/6 Clingo
@@ -1347,7 +1347,7 @@ laptop.</p>
   <a href="../../commits/8dc2368"><code>8dc2368</code></a>).</li>
 <li><strong>Pure-Python verifier passes 6/6</strong> + catches 5/5 deliberate bug
   injections (<a href="../../commits/2bb9e20"><code>2bb9e20</code></a>).</li>
-<li><strong>Package gathered</strong> into self-contained <code>logic-first-design/</code>
+<li><strong>Package gathered</strong> into self-contained <code>nomos/</code>
   directory (<a href="../../commits/3539548"><code>3539548</code></a>).</li>
 <li><strong>First Clingo verifier (F-001 prototype)</strong>
   (<a href="../../commits/94564bf"><code>94564bf</code></a>).</li>

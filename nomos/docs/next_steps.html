@@ -910,8 +910,8 @@ task.</p>
 <p><strong>Effort</strong>: 1-2 weeks for a polished interactive tool; ~3 days
 for a minimal LSP-style &ldquo;verifier-as-you-save&rdquo; file watcher.</p>
 <h3 id="44-public-repository-extraction">4.4 Public repository extraction</h3>
-<p><strong>Status</strong>: lives inside <code>tau2-bench</code> repo as
-<code>logic-first-design/</code>. Self-contained but co-located.</p>
+<p><strong>Status</strong>: lives inside <code>tau2-bench</code> repo as <code>nomos/</code>.
+Self-contained but co-located.</p>
 <p><strong>Why it matters</strong>: if shipping as an independent artifact, a
 separate repo is cleaner. Easier to license / contribute / depend
 on.</p>
@@ -921,7 +921,7 @@ license placeholder).</p>
 upstream-path hardcodes (currently the cross-validator has a
 hardcoded path to tau2-bench).</p>
 <p><strong>Action</strong>:</p>
-<pre><code class="language-sh">git subtree split --prefix=logic-first-design -b logic-first-design-extracted
+<pre><code class="language-sh">git subtree split --prefix=nomos -b nomos-extracted
 # then push the branch to a new repo
 </code></pre>
 <h3 id="45-license-contributing-docs">4.5 License + contributing docs</h3>

@@ -1,17 +1,26 @@
-# Logic-First Domain Design
+# Nomos
 
-A methodology for designing benchmark domains — for conversational
-agents, policy-grounded tools, or similar — by starting from a formal
-logical specification and projecting natural-language prose, code,
-database state, and benchmark tasks from it, rather than authoring
-those artifacts independently and reconciling them by hand.
+**Nomos** (νόμος — Greek for "law / governing principle") is a
+runnable benchmark and authoring environment for logic-first agent
+tasks.
+
+It packages a methodology for designing benchmark domains —
+starting from a formal logical specification and projecting
+natural-language prose, code, database state, and tasks from it —
+together with the tooling to verify, run, and grade agents against
+those domains.
 
 This package is **self-contained**. It includes the methodology, a
 fully worked example (retail returns & refunds), an airline retrofit
 demonstrating generalization, two Clingo-based verifiers, a scenario
-generator, and a cross-validation harness that confirms the
-methodology agrees with upstream tau2-bench tasks on 8 out of 8
-cancellation cases.
+generator, a cross-validation harness that confirms the methodology
+agrees with upstream tau2-bench tasks on 8 out of 8 cancellation
+cases, and a local web UI (in progress) for authoring and running
+benchmark tasks.
+
+> See [`docs/benchmark.md`](docs/benchmark.md) for the v0.5 build
+> we're working toward, and [`docs/open_decisions.md`](docs/open_decisions.md)
+> for the architectural choices still being settled.
 
 Five top-level docs, each available as both Markdown and standalone HTML:
 
@@ -32,7 +41,7 @@ uv run python tools/render_doc.py tutorial methodology findings next_steps lit_r
 ```
 
 ```
-logic-first-design/
+nomos/
   README.md                       ← you are here
   docs/
     methodology.md                ← the methodology, 5 principles + 6 layers
