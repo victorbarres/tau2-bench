@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+.venv/
+
+# Node / Vite
+web/node_modules/
+web/dist/
+web/.vite/
+
+# Runtime data (run history, JSONL trajectories, SQLite)
+data/
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local env overrides
+.env
+.env.local

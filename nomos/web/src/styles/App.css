@@ -1,0 +1,86 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  border-bottom: 1px solid var(--border);
+  padding: 0.9rem 1.75rem;
+  display: flex;
+  align-items: baseline;
+  gap: 1.5rem;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  font-family: var(--font-sans);
+  color: var(--text);
+  text-decoration: none;
+}
+.brand:hover { text-decoration: none; }
+
+.brand-mark {
+  font-family: var(--font-body);
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+.brand-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.brand-tagline {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.topnav {
+  margin-left: auto;
+  display: flex;
+  gap: 1.25rem;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+}
+.topnav a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0.25rem 0;
+  border-bottom: 2px solid transparent;
+}
+.topnav a.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.topnav a:hover {
+  color: var(--text);
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+}
+
+.footer {
+  border-top: 1px solid var(--border);
+  padding: 1.25rem 1.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+.footer code {
+  font-size: 0.85em;
+  background: none;
+  padding: 0;
+}
