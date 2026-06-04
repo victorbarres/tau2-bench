@@ -5,33 +5,20 @@ leaning + why, the trade-off. Crossed off as we pick.
 
 ## Still open
 
-### 1. Name
-
-**Question**: what do we call the runnable benchmark?
-
-**Current leaning**: `logic-first-bench` — descriptive, sells the
-angle, distinguishes from `logic-first-design` (the methodology
-package).
-
-**Alternatives**: `policy-bench`, `asp-bench`, something punchier.
-Naming is reversible cheaply; can punt until we're closer to a
-public ship.
-
-### 2. Repository structure
+### 1. Repository structure
 
 **Question**: stay under `tau2-bench/logic-first-design/`, rename
-in place, or carve out into a new top-level repository?
+in place to `nomos/`, or carve out into a new top-level repository?
 
-**Current leaning**: rename in place to `logic-first-bench/` for
-now. Keep parent `tau2-bench/` repo as the umbrella while we
-prototype. Carve out into its own repo when we're ready to ship
-publicly.
+**Current leaning**: rename in place to `nomos/` for now. Keep
+parent `tau2-bench/` repo as the umbrella while we prototype.
+Carve out into its own repo when we're ready to ship publicly.
 
 **Trade-off**: separate repo would force the no-coupling discipline
 sooner; in-place is faster and we already have the cross-validation
 proof.
 
-### 3. Project layout inside the benchmark dir
+### 2. Project layout inside the benchmark dir
 
 **Question**: how do we organize Python code?
 
@@ -45,7 +32,7 @@ Option C: top-level dirs (server/, mcp/, agents/, ...)
 submodules. Less ceremony than packages/, more structure than
 loose dirs.
 
-### 4. MCP server topology
+### 3. MCP server topology
 
 **Question**: one MCP server per domain (`library_server`,
 `retail_server`, `airline_server`), or one server with a `--domain`
@@ -58,7 +45,7 @@ duplication. Domain-specific tools registered conditionally.
 packaging (one image per domain). One-with-arg is fewer moving
 parts now; refactor when we package for distribution.
 
-### 5. Run-state persistence
+### 4. Run-state persistence
 
 **Question**: do active runs survive a server restart, or die with
 the process?
@@ -69,7 +56,7 @@ the server. Completed runs persist (SQLite + JSONL).
 **Trade-off**: PID-tracking + reattach on restart is doable but
 fiddly. Add it when we hit the first "a run was lost" frustration.
 
-### 6. UI: route library or URL-based switching?
+### 5. UI: route library or URL-based switching?
 
 **Question**: react-router or hand-rolled URL-based view switching
 (matches `web/leaderboard`)?
@@ -78,7 +65,7 @@ fiddly. Add it when we hit the first "a run was lost" frustration.
 page set is small (~7 routes); a router library is overkill and
 we get consistency with existing leaderboard code.
 
-### 7. ASP query panel: derivation chain display
+### 6. ASP query panel: derivation chain display
 
 **Question**: when an ASP query returns derivable, do we show just
 the answer, or visualize the derivation chain (which rules fired,
@@ -92,7 +79,7 @@ parsing Clingo's `--show` output into a tree.
 whole point of "test queries" — answer alone is less informative
 than seeing why.
 
-### 8. Policy-chat panel model
+### 7. Policy-chat panel model
 
 **Question**: do we let the user pick the chat-mode LLM, or hardcode
 one?
@@ -102,7 +89,7 @@ fast Claude (haiku-4-5)**. Chat is informal — we don't want token
 cost to discourage exploration. User can swap to a bigger model if
 they want stricter interpretation.
 
-### 9. Task-edit history surface
+### 8. Task-edit history surface
 
 **Question**: when editing a task creates a new id (`LIB-T-001-v2`),
 do we surface the lineage in the UI ("this is v2 of LIB-T-001") or
@@ -112,7 +99,7 @@ treat each id as independent?
 link. Comparison view across versions is useful for "did this edit
 break anything."
 
-### 10. Headless CLI scope
+### 9. Headless CLI scope
 
 **Question**: does the CLI cover authoring too, or only runs?
 
@@ -120,7 +107,7 @@ break anything."
 means a separate config DSL; not worth it. Edit JSON in your editor,
 run from CLI.
 
-### 11. License
+### 10. License
 
 **Question**: when we ship publicly, what license?
 
@@ -133,6 +120,10 @@ benchmark adoption). Decide closer to ship.
 
 These came up in conversation and have answers:
 
+- **Name: Nomos** — Greek νόμος, "law/custom/governing principle".
+  Foregrounds what we evaluate (policy-following with provable
+  consequences). Distinct from the methodology package, which keeps
+  the name `logic-first-design`.
 - **MCP for tools** — yes
 - **User sim is LLM-driven (when it exists)** — yes, deferred to v0.6
 - **User sim accessed via MCP `ask_user` tool, not A2A** — yes

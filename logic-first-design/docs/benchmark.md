@@ -1,8 +1,15 @@
-# Benchmark — what we're building
+# Nomos — what we're building
 
-A standalone, runnable benchmark **and authoring environment** for
-logic-first agent tasks, built on top of the methodology already in
-this package.
+**Nomos** (νόμος, "law / governing principle") is a standalone,
+runnable benchmark **and authoring environment** for logic-first
+agent tasks, built on top of the methodology already in this
+package.
+
+The name foregrounds what we evaluate — policy-following with
+provable consequences — and signals that each domain is governed
+by formally-stated laws, not by hand-tuned prose. The methodology
+package itself keeps the name `logic-first-design`; *Nomos* is what
+that methodology becomes when it's made runnable.
 
 Two halves:
 - **An IDE for designing domains** — explore the six layers, test
