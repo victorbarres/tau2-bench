@@ -27,6 +27,8 @@ DOCS_ROOT = PACKAGE_ROOT / "docs"
 # Curated metadata + display order for the docs the UI exposes.
 # Adding a new doc: add a row here and create docs/<slug>.md.
 DOC_META: dict[str, dict[str, Any]] = {
+    "status":         {"title": "Status — start here",     "order": 0,
+                       "blurb": "Picking up after time away — arc, state, decision, roadmap"},
     "tutorial":       {"title": "Tutorial",                "order": 1,
                        "blurb": "Library micro-world walkthrough"},
     "methodology":    {"title": "Methodology",             "order": 2,
