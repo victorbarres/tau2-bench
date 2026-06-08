@@ -910,26 +910,37 @@ task.</p>
 <p><strong>Effort</strong>: 1-2 weeks for a polished interactive tool; ~3 days
 for a minimal LSP-style &ldquo;verifier-as-you-save&rdquo; file watcher.</p>
 <h3 id="44-public-repository-extraction">4.4 Public repository extraction</h3>
-<p><strong>Status</strong>: lives inside <code>tau2-bench</code> repo as <code>nomos/</code>.
-Self-contained but co-located.</p>
+<p><strong>Status</strong>: extraction-ready as of 2026-06-08. Co-located under
+<code>tau2-bench/</code> but structurally portable:</p>
+<ul>
+<li>LICENSE present (Apache-2.0).</li>
+<li>CONTRIBUTING.md present with dev setup + cross-validation
+  instructions.</li>
+<li>README rewritten for a fresh standalone audience.</li>
+<li><code>tools/cross_validate_airline.py</code> no longer has a hardcoded path
+  to tau-bench; uses <code>--upstream-data</code> CLI flag, or
+  <code>NOMOS_UPSTREAM_AIRLINE_DATA</code> env var, or the sibling default.</li>
+<li>GitHub Actions CI added (<code>.github/workflows/ci.yml</code>) — runs the
+  full verifier suite + a React build on every push/PR. No upstream
+  data needed (cross-validation is excluded from CI; runs locally
+  when the data is present).</li>
+<li>Smoke-tested: all 6 verifier suites pass, missing-data error is
+  user-friendly.</li>
+</ul>
 <p><strong>Why it matters</strong>: if shipping as an independent artifact, a
 separate repo is cleaner. Easier to license / contribute / depend
 on.</p>
-<p><strong>Dependencies</strong>: a license decision (currently the README has a
-license placeholder).</p>
-<p><strong>Effort</strong>: 1 hour for <code>git subtree split</code>; longer if cleaning up
-upstream-path hardcodes (currently the cross-validator has a
-hardcoded path to tau2-bench).</p>
+<p><strong>Dependencies</strong>: none remaining.</p>
+<p><strong>Effort</strong>: ~15 minutes for <code>git subtree split</code> + push.</p>
 <p><strong>Action</strong>:</p>
 <pre><code class="language-sh">git subtree split --prefix=nomos -b nomos-extracted
-# then push the branch to a new repo
+# then push the branch to a new repo:
+#   git remote add nomos &lt;new-repo-url&gt;
+#   git push nomos nomos-extracted:main
 </code></pre>
 <h3 id="45-license-contributing-docs">4.5 License + contributing docs</h3>
-<p><strong>Status</strong>: README has a <code>(To be set by the project owner before shipping.)</code>
-license placeholder. No CONTRIBUTING.md.</p>
-<p><strong>Why it matters</strong>: needed before extraction (4.4) or external sharing.</p>
-<p><strong>Dependencies</strong>: an explicit license choice from the project owner.</p>
-<p><strong>Effort</strong>: 30 minutes once the license is chosen.</p>
+<p><strong>Status</strong>: done. Apache-2.0 LICENSE + CONTRIBUTING.md added
+2026-06-08. README&rsquo;s license section now points at LICENSE.</p>
 <hr />
 <h2 id="decision-guide-where-to-start">Decision guide — where to start</h2>
 <p>Pick the row matching your goal:</p>

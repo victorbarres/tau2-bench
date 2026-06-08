@@ -2,17 +2,17 @@
 """
 Cross-validate the airline retrofit against upstream tau2-bench tasks.
 
-Reads tasks and DB entities directly from the upstream
-tau2-bench/data/tau2/domains/airline/ directory, adapts the schema to
-our ontology, and runs them through the airline verifier. The expected
-outcome is derived from the upstream task's nl_assertions /
-evaluation_criteria.actions.
+Reads tasks and DB entities from a clone of the tau-bench airline
+domain (a directory containing `db.json` and `tasks.json`), adapts
+the schema to our ontology, and runs them through the airline
+verifier. The expected outcome is derived from the upstream task's
+nl_assertions / evaluation_criteria.actions.
 
-This is the *unforgiving validation*: the upstream tasks were authored
-by humans without reference to our methodology, against the prose
-policy.md. If our verifier agrees with the upstream's expected
-outcome on each task, that's strong evidence the methodology
-generalizes to corpora not designed for it.
+This is the *unforgiving validation*: the upstream tasks were
+authored by humans without reference to our methodology, against
+the prose policy.md. If our verifier agrees with the upstream's
+expected outcome on each task, that's strong evidence the
+methodology generalizes to corpora not designed for it.
 
 Currently cross-validates 3 cancellation tasks (out of ~11 upstream):
 
@@ -22,23 +22,59 @@ Currently cross-validates 3 cancellation tasks (out of ~11 upstream):
 
 Each task's intent is hand-authored from the user_scenario prose.
 
+## Pointing the script at upstream data
+
+The upstream airline data is part of tau-bench, not Nomos. Tell the
+script where it lives in one of three ways (highest precedence first):
+
+  1. CLI flag      :  --upstream-data PATH
+  2. Env variable  :  NOMOS_UPSTREAM_AIRLINE_DATA=PATH
+  3. Default       :  ../data/tau2/domains/airline relative to the
+                      Nomos directory (works when Nomos is co-located
+                      with the tau2-bench repo, as during the
+                      prototype phase)
+
+PATH must be a directory containing `db.json` and `tasks.json`. To
+fetch the data: clone https://github.com/sierra-research/tau2-bench
+and point at `<clone>/data/tau2/domains/airline`.
+
 Run:
   uv run python tools/cross_validate_airline.py
+  uv run python tools/cross_validate_airline.py --upstream-data PATH
+  NOMOS_UPSTREAM_AIRLINE_DATA=PATH uv run python tools/cross_validate_airline.py
 """
 
 from __future__ import annotations
 
+import argparse
 import json
+import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 
-# Upstream tau-bench airline domain (read-only).
-UPSTREAM_ROOT = Path("/Users/victorbarres/scripts/tau2-bench/data/tau2/domains/airline")
-UPSTREAM_DB = UPSTREAM_ROOT / "db.json"
-UPSTREAM_TASKS = UPSTREAM_ROOT / "tasks.json"
+# Default upstream location: assume tau2-bench is a sibling of Nomos's
+# parent. Adjust at runtime via --upstream-data or NOMOS_UPSTREAM_AIRLINE_DATA.
+DEFAULT_UPSTREAM_ROOT = (
+    PACKAGE_ROOT.parent / "data" / "tau2" / "domains" / "airline"
+)
+
+
+def resolve_upstream_root(cli_path: str | None) -> Path:
+    """
+    Return the upstream airline-data directory using the precedence:
+    CLI flag > env var > default sibling path. Returns the Path even if
+    it doesn't exist — caller is responsible for the existence check
+    so it can emit a usage-shaped error message.
+    """
+    if cli_path:
+        return Path(cli_path).expanduser().resolve()
+    env_path = os.environ.get("NOMOS_UPSTREAM_AIRLINE_DATA")
+    if env_path:
+        return Path(env_path).expanduser().resolve()
+    return DEFAULT_UPSTREAM_ROOT
 
 # Our airline verifier — reuses Layer B extraction, encode_db, etc.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -479,24 +515,48 @@ def cross_validate(spec: CrossValSpec, upstream_db: dict, layer_b: str) -> Cross
 # ============================================================================
 
 
+def _parse_args() -> argparse.Namespace:
+    """CLI flags: --upstream-data overrides env var + default."""
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[1])
+    p.add_argument(
+        "--upstream-data", type=str, default=None,
+        help="Path to the upstream tau-bench airline data directory "
+             "(must contain db.json and tasks.json). Falls back to "
+             "$NOMOS_UPSTREAM_AIRLINE_DATA or ../data/tau2/domains/airline.",
+    )
+    return p.parse_args()
+
+
 def main() -> int:
     """
     CLI entry: load upstream JSON, cross-validate each task in
     CROSS_VAL_SPECS, print a results table + per-task detail with Solve
     diffs, return non-zero if any task fails to agree with upstream.
     """
+    args = _parse_args()
+    upstream_root = resolve_upstream_root(args.upstream_data)
+    upstream_db_path = upstream_root / "db.json"
+
     print("=" * 78)
     print("Cross-validation: airline retrofit vs upstream tau2-bench tasks")
     print("=" * 78)
 
-    if not UPSTREAM_DB.exists():
-        print(f"\n  Upstream db not found at {UPSTREAM_DB}")
+    if not upstream_db_path.exists():
+        print(f"\n  Upstream airline data not found at: {upstream_root}")
+        print(f"  Expected: {upstream_db_path}")
+        print()
+        print("  To run this script, point it at a clone of the tau-bench")
+        print("  airline data directory (it ships in the tau2-bench repo).")
+        print("  Pick one:")
+        print("    --upstream-data PATH                          (CLI flag)")
+        print("    NOMOS_UPSTREAM_AIRLINE_DATA=PATH              (env var)")
+        print("    place data at ../data/tau2/domains/airline    (default)")
         return 1
 
-    print(f"\n[setup] Upstream DB: {UPSTREAM_DB}")
+    print(f"\n[setup] Upstream DB: {upstream_db_path}")
     print(f"[setup] Cross-validating {len(CROSS_VAL_SPECS)} task(s).")
 
-    upstream_db = json.loads(UPSTREAM_DB.read_text())
+    upstream_db = json.loads(upstream_db_path.read_text())
     layer_b = extract_asp_from_rules_md(RULES_PATH)
 
     results: list[CrossValResult] = []

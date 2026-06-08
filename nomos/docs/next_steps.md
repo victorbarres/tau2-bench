@@ -735,36 +735,43 @@ for a minimal LSP-style "verifier-as-you-save" file watcher.
 
 ### 4.4 Public repository extraction
 
-**Status**: lives inside `tau2-bench` repo as `nomos/`.
-Self-contained but co-located.
+**Status**: extraction-ready as of 2026-06-08. Co-located under
+`tau2-bench/` but structurally portable:
+
+- LICENSE present (Apache-2.0).
+- CONTRIBUTING.md present with dev setup + cross-validation
+  instructions.
+- README rewritten for a fresh standalone audience.
+- `tools/cross_validate_airline.py` no longer has a hardcoded path
+  to tau-bench; uses `--upstream-data` CLI flag, or
+  `NOMOS_UPSTREAM_AIRLINE_DATA` env var, or the sibling default.
+- GitHub Actions CI added (`.github/workflows/ci.yml`) — runs the
+  full verifier suite + a React build on every push/PR. No upstream
+  data needed (cross-validation is excluded from CI; runs locally
+  when the data is present).
+- Smoke-tested: all 6 verifier suites pass, missing-data error is
+  user-friendly.
 
 **Why it matters**: if shipping as an independent artifact, a
 separate repo is cleaner. Easier to license / contribute / depend
 on.
 
-**Dependencies**: a license decision (currently the README has a
-license placeholder).
+**Dependencies**: none remaining.
 
-**Effort**: 1 hour for `git subtree split`; longer if cleaning up
-upstream-path hardcodes (currently the cross-validator has a
-hardcoded path to tau2-bench).
+**Effort**: ~15 minutes for `git subtree split` + push.
 
 **Action**:
 ```sh
 git subtree split --prefix=nomos -b nomos-extracted
-# then push the branch to a new repo
+# then push the branch to a new repo:
+#   git remote add nomos <new-repo-url>
+#   git push nomos nomos-extracted:main
 ```
 
 ### 4.5 License + contributing docs
 
-**Status**: README has a `(To be set by the project owner before shipping.)`
-license placeholder. No CONTRIBUTING.md.
-
-**Why it matters**: needed before extraction (4.4) or external sharing.
-
-**Dependencies**: an explicit license choice from the project owner.
-
-**Effort**: 30 minutes once the license is chosen.
+**Status**: done. Apache-2.0 LICENSE + CONTRIBUTING.md added
+2026-06-08. README's license section now points at LICENSE.
 
 ---
 

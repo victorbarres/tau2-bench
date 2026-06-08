@@ -3,6 +3,8 @@ name = "nomos"
 version = "0.1.0"
 description = "Nomos — runnable benchmark and authoring environment for logic-first agent tasks. Includes the methodology, worked examples (retail returns, airline retrofit, library tutorial), verifiers, and a local web UI."
 readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Victor Barres", email = "victor.barres@gmail.com" }]
 requires-python = ">=3.10"
 dependencies = [
     "clingo>=5.6",
