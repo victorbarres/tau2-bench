@@ -1,0 +1,3 @@
+[submodule "nomos"]
+	path = nomos
+	url = git@github.com:victorbarres/nomos.git
